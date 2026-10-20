@@ -1,6 +1,7 @@
 package com.foody.delivery.auth;
 
 import java.sql.Statement;
+import java.util.Optional;
 
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -37,6 +38,20 @@ public class AuthRepository {
             }
             throw exception;
         }
+    }
+
+    public Optional<User> findByEmail(String email) {
+        return jdbcTemplate.query("""
+                        SELECT id, name, email, password_hash
+                        FROM users
+                        WHERE email = ?
+                        """,
+                (resultSet, rowNumber) -> new User(
+                        resultSet.getLong("id"),
+                        resultSet.getString("name"),
+                        resultSet.getString("email"),
+                        resultSet.getString("password_hash")),
+                email).stream().findFirst();
     }
 
     private User insertInCurrentTransaction(String name, String email, String passwordHash) {

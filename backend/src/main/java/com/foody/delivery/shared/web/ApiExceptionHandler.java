@@ -6,6 +6,7 @@ import java.util.List;
 
 import com.foody.delivery.auth.DatabaseBusyException;
 import com.foody.delivery.auth.EmailAlreadyExistsException;
+import com.foody.delivery.auth.InvalidCredentialsException;
 
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -74,6 +75,19 @@ public class ApiExceptionHandler {
                 exception.getMessage(),
                 request);
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(problem);
+    }
+
+    @ExceptionHandler(InvalidCredentialsException.class)
+    ResponseEntity<ProblemDetail> handleInvalidCredentials(
+            InvalidCredentialsException exception,
+            HttpServletRequest request) {
+        var problem = problem(
+                HttpStatus.UNAUTHORIZED,
+                "INVALID_CREDENTIALS",
+                "Credenciais inválidas",
+                exception.getMessage(),
+                request);
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(problem);
     }
 
     private static ProblemDetail problem(
