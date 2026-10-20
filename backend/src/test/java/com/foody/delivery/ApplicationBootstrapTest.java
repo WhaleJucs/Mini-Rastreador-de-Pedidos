@@ -25,8 +25,7 @@ class ApplicationBootstrapTest {
 
     @DynamicPropertySource
     static void databaseProperties(DynamicPropertyRegistry registry) {
-        registry.add("foody.test.database-url",
-                () -> "jdbc:sqlite:" + databaseDirectory.resolve("bootstrap.db"));
+        registry.add("foody.test.database-path", () -> databaseDirectory.resolve("bootstrap.db").toString());
     }
 
     @Autowired

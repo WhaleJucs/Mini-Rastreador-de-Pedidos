@@ -1,3 +1,9 @@
-spring:
-  datasource:
-    url: ${foody.test.database-url}
+app:
+  db:
+    path: ${foody.test.database-path}
+  jwt:
+    # Fixture pública do harness, nunca carregada pelo JAR de distribuição.
+    secret-base64: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+    issuer: foody-test
+  cors:
+    allowed-origins: http://localhost:5174

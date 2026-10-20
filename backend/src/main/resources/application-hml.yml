@@ -1,0 +1,20 @@
+# Valores de DB/JWT/CORS vêm exclusivamente das variáveis mapeadas em application.yml.
+# Nenhum default local é importado por este perfil.
+debug: false
+trace: false
+
+logging:
+  level:
+    root: INFO
+    org.springframework.jdbc: 'OFF'
+    org.springframework.web: WARN
+    org.springframework.security: WARN
+
+spring:
+  mvc:
+    log-request-details: false
+
+server:
+  tomcat:
+    accesslog:
+      enabled: false

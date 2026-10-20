@@ -7,9 +7,13 @@
     "node": ">=22.22.0"
   },
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --host 127.0.0.1 --port 5174 --strictPort",
     "build": "vite build",
-    "preview": "vite preview"
+    "build:dev": "vite build --mode development",
+    "build:hml": "vite build --mode hml",
+    "build:prod": "vite build --mode production",
+    "preview": "vite preview",
+    "verify:env": "node --test src/config/env.test.js && node scripts/verify-environments.mjs"
   },
   "dependencies": {
     "axios": "1.20.0",
