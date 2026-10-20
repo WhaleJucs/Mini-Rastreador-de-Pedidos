@@ -1,0 +1,22 @@
+# DB/JWT/CORS obrigatórios vêm do mapeamento externo em application.yml.
+debug: false
+trace: false
+
+logging:
+  level:
+    root: INFO
+    org.springframework.jdbc: 'OFF'
+    org.springframework.web: WARN
+    org.springframework.security: WARN
+    # Exceções não tratadas podem incluir SQL/corpos no log bruto do container.
+    org.apache.catalina.core.ContainerBase: 'OFF'
+
+spring:
+  mvc:
+    log-request-details: false
+
+server:
+  forward-headers-strategy: NONE
+  tomcat:
+    accesslog:
+      enabled: false

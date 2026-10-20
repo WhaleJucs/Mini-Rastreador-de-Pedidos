@@ -1,6 +1,7 @@
 package com.foody.delivery.config;
 
 import java.net.URI;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Base64;
 import java.util.Set;
@@ -33,6 +34,13 @@ public class EnvironmentValidator {
             validPath = false;
         }
         require(validPath, "APP_DB_PATH deve indicar um arquivo SQLite; hml/prod exigem caminho absoluto.");
+        if (profile.equals("prod")) {
+            var path = Path.of(db.path()).normalize();
+            var parent = path.getParent();
+            require(parent != null && Files.isDirectory(parent) && Files.isWritable(parent)
+                            && (!Files.exists(path) || (Files.isRegularFile(path) && Files.isWritable(path))),
+                    "APP_DB_PATH em prod exige diretório pai existente e gravável, e arquivo SQLite criável ou gravável; prepare o volume externo.");
+        }
         require(db.busyTimeoutMs() > 0, "APP_DB_BUSY_TIMEOUT_MS deve ser inteiro positivo e finito.");
 
         var jwt = properties.jwt();

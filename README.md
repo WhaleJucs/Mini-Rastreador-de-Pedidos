@@ -221,3 +221,72 @@ logs de Authorization/corpos com endereço ou overrides de debug no alvo.
 Auth e CORS HTTP serão implementados nos tickets próprios. Provedor, domínios,
 certificados, credenciais reais e deploy continuam pendentes de definição;
 nenhuma URL fictícia usada no teste é um destino de homologação implantado.
+
+## Produção — configuração e artefatos, sem implantação
+
+Use o mesmo JAR verificado, com `SPRING_PROFILES_ACTIVE=prod` e configuração
+externa ao artefato. Exija `APP_DB_PATH` absoluto em um volume durável externo
+ao checkout/artefato, com diretório pai já existente e gravável pelo usuário do
+processo. O arquivo, se existir, deve ser regular e gravável. O início recusa
+caminho relativo, banco em memória, diretório/arquivo inválido ou insumos
+ausentes; não cria diretórios nem escolhe um volume por você. A checagem local
+de acesso não comprova durabilidade do volume nem impede alterações de ACL
+posteriores: confirme essas condições no alvo antes de operar.
+
+Injete também `APP_JWT_SECRET_BASE64` exclusivo de prod (mínimo 32 bytes
+decodificados), `APP_JWT_ISSUER` próprio e `APP_CORS_ALLOWED_ORIGINS` com
+origens HTTPS exatas do frontend. Não reutilize banco, chave ou issuer de
+local/hml; não existe fallback para esses valores nem seed de conta/senha.
+Não grave secrets no Git, no bundle ou em argumentos de linha de comando.
+Use somente um backend escritor sobre armazenamento local durável; disco
+efêmero, arquivo em rede e múltiplas réplicas escritoras não são alvos desta
+configuração. Não há alta disponibilidade ou hospedagem provisionada.
+
+No frontend, em um PowerShell dedicado dentro de `frontend`:
+
+```powershell
+npm ci
+if (-not (Test-Path .env.production.local)) {
+    Copy-Item .env.production.example .env.production.local
+}
+# Preencha VITE_API_BASE_URL com a URL HTTPS pública real da API, incluindo /api.
+npm run build:prod
+```
+
+Esperado após preencher: `dist` específico de prod. Sem URL, com loopback/HTTP
+ou com `NODE_ENV` diferente de production o build falha. `npm run build`
+também usa production. A configuração pública fica embutida no build; mudar
+variáveis no servidor depois não altera esse `dist`. Recompile ao trocar a
+URL e publique os arquivos estáticos com o servidor apropriado ao alvo.
+Vite dev/preview servem apenas à verificação local. Os builds terminam sozinhos;
+eventual preview encerra com Ctrl+C. Backend em primeiro plano também encerra
+com Ctrl+C, aguardando o shutdown gracioso.
+
+Prod mantém INFO geral, JDBC/SQL e access log desabilitados, web/security em
+WARN, sem debug/trace/detalhes de request. O log bruto de exceções de request
+do container fica desabilitado para evitar imprimir SQL/corpos/segredos;
+diagnósticos de negócio sanitizados serão tratados junto aos endpoints.
+Respostas de erro omitem mensagem interna, binding, exception e stacktrace.
+Não habilite overrides que imprimam Authorization, senha/hash ou endereço.
+Não há Actuator/endpoint público de diagnóstico.
+
+O alvo deverá fornecer HTTPS, certificados, cabeçalhos de segurança e acesso
+restrito à porta do backend por reverse proxy. `server.forward-headers-strategy`
+é `NONE`: o backend ignora Forwarded/X-Forwarded-* até que os proxies confiáveis
+e a topologia sejam definidos e verificados. Não habilite confiança ampla em
+cabeçalhos enviados pela internet. Esta etapa não configura provedor, TLS,
+DNS, proxy real nem CORS/autenticação funcionais.
+
+Antes de manutenção/backup, pare o único backend escritor e confirme o fim
+do processo/conexões. Faça uma cópia consistente do conjunto SQLite do volume
+com o banco fechado; não copie apenas `.db` ativo nem descarte sidecars. Guarde
+backup protegido e confira recuperação em um destino isolado antes de depender
+dele. Backup online, se necessário, exige ferramenta SQLite apropriada e
+procedimento próprio. Nenhum backup/restore de dados reais é feito pelo build.
+
+Para rollback, pare a aplicação, preserve o volume e selecione o JAR, `dist`
+e configuração externa anteriores compatíveis entre si e com o schema atual.
+Reinicie com o mesmo caminho de dados; não restaure DB nem apague dados por
+erro de configuração. Se houver mudança incompatível de schema, interrompa o
+rollback e prepare um plano específico. Testes de perfil usam arquivos
+temporários e não validam backup, TLS ou durabilidade de uma produção real.

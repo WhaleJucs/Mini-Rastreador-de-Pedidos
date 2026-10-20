@@ -3,12 +3,17 @@ import react from '@vitejs/plugin-react';
 import { resolveEnv } from './src/config/env-validation.js';
 
 export default defineConfig(({ mode }) => {
-  if (mode === 'hml' && process.env.NODE_ENV && process.env.NODE_ENV !== 'production') {
-    throw new Error('O build hml exige NODE_ENV=production; selecione homologação pelo modo hml.');
-  }
   resolveEnv({ ...loadEnv(mode, process.cwd(), 'VITE_'), MODE: mode });
   return {
-    plugins: [react()],
+    plugins: [react(), {
+      name: 'validate-production-environment',
+      configResolved(config) {
+        // Usa a configuração final, inclusive NODE_ENV recebido por arquivo .env.
+        if (['hml', 'production'].includes(config.mode) && !config.isProduction) {
+          throw new Error('O build hml/production exige NODE_ENV=production; selecione o ambiente pelo modo Vite.');
+        }
+      },
+    }],
     server: {
       proxy: {
         '/api': 'http://127.0.0.1:8081',
