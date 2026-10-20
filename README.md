@@ -290,3 +290,38 @@ Reinicie com o mesmo caminho de dados; não restaure DB nem apague dados por
 erro de configuração. Se houver mudança incompatível de schema, interrompa o
 rollback e prepare um plano específico. Testes de perfil usam arquivos
 temporários e não validam backup, TLS ou durabilidade de uma produção real.
+
+## Verificar isolamento de ambientes
+
+No PowerShell, com JDK 21/Node/npm disponíveis:
+
+```powershell
+# Na pasta backend:
+.\mvnw.cmd '-Dtest=EnvironmentIsolationTest' test
+.\mvnw.cmd verify
+
+# Na pasta frontend:
+npm run verify:env
+```
+
+Esperado: testes backend aprovados e `result: PASS` no frontend. A matriz
+SQLite usa somente arquivos temporários próprios de local/hml/prod/test,
+verifica arquivos físicos distintos, rollback, reinício e FK/timeout por
+conexão. Não lê nem grava o banco de desenvolvimento ou de um alvo remoto.
+
+`verify:env` roda os testes de configuração e instala com `npm ci` em uma
+cópia temporária limpa, sem copiar seus arquivos `.env`. Exige acesso ao npm
+e usa somente URLs/chaves fictícias. Constrói development/hml/production
+com sourcemaps, verifica ausência de marcadores secretos e rejeita entradas
+inválidas. Uma sonda na cópia mantém o cliente Axios no bundle para conferir
+endpoint/rótulo e diferença entre dist hml/prod; a tela inicial ainda não usa
+esse cliente. A cópia é removida ao terminar, inclusive em falha, preservando
+fontes, `.env`, `node_modules` e `dist` do projeto. Os comandos terminam
+sozinhos e não deixam servidores ativos.
+
+Builds hml/prod com URLs diferentes precisam ser compilados separadamente;
+trocar variáveis no runtime não reconfigura assets já gerados. Essa prova é
+de configuração e fixtures. JWT de outro emissor, sessão persistente, CORS
+efetivo e erros dos endpoints de negócio serão verificados após a
+implementação da autenticação/API. Não comprova deploy ou isolamento físico
+de infraestrutura remota.
