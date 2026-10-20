@@ -2,9 +2,9 @@ package com.foody.delivery.config;
 
 import javax.sql.DataSource;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Import;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.jdbc.datasource.init.DataSourceInitializer;
 import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
@@ -15,15 +15,16 @@ import org.sqlite.SQLiteDataSource;
 
 @Configuration(proxyBeanMethods = false)
 @EnableTransactionManagement
+@Import(EnvironmentValidator.class)
 public class DatabaseConfig {
 
     @Bean
-    DataSource dataSource(@Value("${spring.datasource.url}") String url) {
+    DataSource dataSource(AppProperties properties, EnvironmentValidator validatedEnvironment) {
         var config = new SQLiteConfig();
         config.enforceForeignKeys(true);
-        config.setBusyTimeout(3000);
+        config.setBusyTimeout(properties.db().busyTimeoutMs());
         var dataSource = new SQLiteDataSource(config);
-        dataSource.setUrl(url);
+        dataSource.setUrl("jdbc:sqlite:" + properties.db().path());
         return dataSource;
     }
 

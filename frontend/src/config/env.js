@@ -1,3 +1,3 @@
-export const env = Object.freeze({
-  apiBaseUrl: import.meta.env.VITE_API_BASE_URL?.trim().replace(/\/+$/, '') || '/api',
-});
+import { resolveEnv } from './env-validation.js';
+
+export const env = resolveEnv(import.meta.env);

@@ -23,13 +23,27 @@ Set-Location .\backend
 $databaseDirectory = Join-Path ([IO.Path]::GetTempPath()) ('foody-foundation-' + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $databaseDirectory | Out-Null
 $database = Join-Path $databaseDirectory 'foundation.db'
-java -jar .\target\delivery-0.0.1-SNAPSHOT.jar "--spring.datasource.url=jdbc:sqlite:$database" --server.address=127.0.0.1 --server.port=8081
+$env:SPRING_PROFILES_ACTIVE = 'local'
+$env:APP_DB_PATH = $database
+$env:APP_JWT_SECRET_BASE64 = [Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
+$env:APP_JWT_ISSUER = 'foody-local'
+$env:APP_CORS_ALLOWED_ORIGINS = 'http://127.0.0.1:5174'
+java -jar .\target\delivery-0.0.1-SNAPSHOT.jar --server.address=127.0.0.1 --server.port=8081
 ```
 
-Esperado: `BUILD SUCCESS`, 15 testes aprovados e backend em
+Esperado: `BUILD SUCCESS`, 47 testes aprovados e backend em
 `http://127.0.0.1:8081`. O schema é criado no arquivo escolhido, preservando os
 registros existentes. O diretório pai precisa existir e ser gravável.
 Os testes automatizados usam outros arquivos temporários próprios.
+
+Selecione exatamente um perfil `local`, `hml` ou `prod`; ausência, combinação
+e perfil desconhecido são recusados. `test` pertence somente ao harness e não
+acompanha o JAR. `APP_DB_PATH`, `APP_JWT_SECRET_BASE64`, `APP_JWT_ISSUER` e
+`APP_CORS_ALLOWED_ORIGINS` são obrigatórios. A chave Base64 precisa ter pelo
+menos 32 bytes decodificados. TTL (`APP_JWT_TTL_SECONDS`) e espera SQLite
+(`APP_DB_BUSY_TIMEOUT_MS`) são positivos, com padrões 3600 s e 5000 ms.
+O contrato de configuração está implementado; autenticação JWT e aplicação
+das origens CORS à cadeia HTTP continuam nos tickets próprios.
 
 Encerre com **Ctrl+C** e aguarde `Graceful shutdown complete`. Para reiniciar
 com o mesmo banco, repita somente o comando `java -jar` no mesmo terminal.
@@ -50,6 +64,7 @@ $env:Path = "$env:JAVA_HOME\bin;$env:Path"
 Set-Location .\frontend
 npm ci
 $env:VITE_API_BASE_URL = '/api'
+$env:VITE_APP_ENV = 'local'
 npm run dev -- --host 127.0.0.1 --port 5174 --strictPort
 ```
 
@@ -92,10 +107,18 @@ do backend, ajuste também o destino do proxy em `frontend/vite.config.js`.
 Depois de encerrar o Vite, no diretório `frontend`:
 
 ```powershell
+$env:VITE_APP_ENV = 'prod'
+$env:VITE_API_BASE_URL = 'https://api.example.invalid/api'
 npm run build
 npm run preview -- --host 127.0.0.1 --port 4174 --strictPort
 ```
 
 Esperado: `dist` gerado e a tela inicial em `http://127.0.0.1:4174`.
-Encerre com **Ctrl+C**. Preview serve para conferir o build local; configuração
-local/homologação/produção e publicação serão tratadas em etapas posteriores.
+Encerre com **Ctrl+C**. O endpoint `.invalid` é fictício, somente para conferir
+o build da tela inicial. Preview serve para conferência; não é servidor de
+produção. `VITE_APP_ENV` deve corresponder ao modo Vite: `development`/`local`,
+`hml`/`hml`, `production`/`prod`. URL ausente ou modo divergente são recusados;
+hml/prod exigem URL HTTPS absoluta com base `/api`, sem credencial/query nem
+loopback. Use `node --test src/config/env.test.js` para verificar esse contrato.
+Antes de voltar ao dev server, reatribua `VITE_APP_ENV=local` e a base `/api`.
+Templates/scripts por ambiente e publicação serão tratados em etapas posteriores.

@@ -44,8 +44,13 @@ class DatabaseIntegrationTest {
     @BeforeEach
     void openDatabase() {
         context = new AnnotationConfigApplicationContext();
+        context.getEnvironment().setActiveProfiles("test");
         context.getEnvironment().getPropertySources().addFirst(new MapPropertySource("database-test",
-                Map.of("spring.datasource.url", "jdbc:sqlite:" + directory.resolve("integration.db"))));
+                Map.of("app.db.path", directory.resolve("integration.db").toString(),
+                        "app.db.busy-timeout-ms", "3000",
+                        "app.jwt.secret-base64", "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+                        "app.jwt.issuer", "foody-test",
+                        "app.cors.allowed-origins", "http://localhost:5174")));
         context.register(DatabaseConfig.class);
         context.refresh();
         dataSource = context.getBean(DataSource.class);
