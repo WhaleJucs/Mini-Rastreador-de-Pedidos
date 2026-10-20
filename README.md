@@ -183,3 +183,41 @@ Spring exige exatamente um perfil local/hml/prod; `test` é exclusivo do harness
 e não acompanha o JAR. Hml/prod continuam exigindo caminho SQLite absoluto,
 chave, issuer e origens explícitas, sem herdar defaults locais. Configuração e
 builds não comprovam deploy nem jornadas de cadastro/login/pedidos.
+
+## Homologação — configuração sem implantação
+
+Use o mesmo JAR verificado da revisão; selecione `SPRING_PROFILES_ACTIVE=hml`
+no processo. Antes de iniciar, injete `APP_DB_PATH` absoluto para um arquivo em
+diretório externo existente/gravável, `APP_JWT_ISSUER` exclusivo de hml,
+`APP_JWT_SECRET_BASE64` próprio de hml (mínimo 32 bytes decodificados) e
+`APP_CORS_ALLOWED_ORIGINS` com origens HTTPS exatas, separadas por vírgula,
+sem caminhos/wildcards/loopback. Não reutilize banco, chave ou issuer local/prod.
+Não há fallback para esses valores; o início incompleto falha antes de criar DB.
+As variáveis são injetadas pelo executor; não grave chaves em arquivos versionados.
+O armazenamento deve ser persistente, com um backend escritor; sua durabilidade
+precisa ser verificada no futuro alvo autorizado.
+
+No frontend, em um PowerShell dedicado dentro de `frontend`:
+
+```powershell
+npm ci
+if (-not (Test-Path .env.hml.local)) { Copy-Item .env.hml.example .env.hml.local }
+# Preencha VITE_API_BASE_URL em .env.hml.local com a URL HTTPS real, incluindo /api.
+# O placeholder vazio falha de propósito; .example não é carregado pelo Vite.
+npm run build:hml
+```
+
+Esperado após preencher: `dist` com a URL pública de hml. O script já usa
+`vite build --mode hml`; NODE_ENV deve ser production (default do build),
+nunca development para simular hml. `dist` é específico do modo/URL e precisa
+ser recompilado se estes mudarem. Não injete segredos em VITE_*.
+O comando termina sozinho; eventual preview local encerra com Ctrl+C e não
+fornece proxy da API nem representa servidor hml.
+
+O perfil hml mantém INFO geral, desabilita logs JDBC/SQL e access log,
+limita web/security a WARN, sem detalhes de request/debug/trace. Erros ao
+cliente omitem mensagem interna, binding, exception e stacktrace. Não habilite
+logs de Authorization/corpos com endereço ou overrides de debug no alvo.
+Auth e CORS HTTP serão implementados nos tickets próprios. Provedor, domínios,
+certificados, credenciais reais e deploy continuam pendentes de definição;
+nenhuma URL fictícia usada no teste é um destino de homologação implantado.
