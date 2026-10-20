@@ -1,0 +1,3 @@
+spring:
+  datasource:
+    url: ${foody.test.database-url}
