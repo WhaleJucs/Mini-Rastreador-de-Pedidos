@@ -4,6 +4,7 @@ import java.net.URI;
 import java.util.Comparator;
 import java.util.List;
 
+import com.fasterxml.jackson.databind.JsonMappingException;
 import com.foody.delivery.auth.DatabaseBusyException;
 import com.foody.delivery.auth.EmailAlreadyExistsException;
 import com.foody.delivery.auth.InvalidCredentialsException;
@@ -14,6 +15,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.dao.DataAccessException;
+import org.springframework.transaction.TransactionException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -40,15 +43,50 @@ public class ApiExceptionHandler {
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
-    ResponseEntity<ProblemDetail> handleUnreadableBody(HttpServletRequest request) {
+    ResponseEntity<ProblemDetail> handleUnreadableBody(
+            HttpMessageNotReadableException exception,
+            HttpServletRequest request) {
         var problem = problem(
                 HttpStatus.BAD_REQUEST,
                 "VALIDATION_ERROR",
                 "Dados inválidos",
                 "O corpo da requisição é inválido ou contém campos não permitidos.",
                 request);
-        problem.setProperty("violations", List.of());
+        problem.setProperty("violations", bindingViolations(exception));
         return ResponseEntity.badRequest().body(problem);
+    }
+
+    private static List<Violation> bindingViolations(Throwable failure) {
+        for (var cause = failure; cause != null; cause = cause.getCause()) {
+            if (cause instanceof JsonMappingException mapping && !mapping.getPath().isEmpty()) {
+                var field = new StringBuilder();
+                for (var reference : mapping.getPath()) {
+                    if (reference.getFieldName() != null) {
+                        if (!field.isEmpty()) {
+                            field.append('.');
+                        }
+                        field.append(reference.getFieldName());
+                    } else if (reference.getIndex() >= 0) {
+                        field.append('[').append(reference.getIndex()).append(']');
+                    }
+                }
+                if (!field.isEmpty()) {
+                    return List.of(new Violation(field.toString(), "Informe um valor válido para este campo."));
+                }
+            }
+        }
+        return List.of();
+    }
+
+    @ExceptionHandler({DataAccessException.class, TransactionException.class})
+    ResponseEntity<ProblemDetail> handlePersistenceFailure(HttpServletRequest request) {
+        var problem = problem(
+                HttpStatus.INTERNAL_SERVER_ERROR,
+                "INTERNAL_ERROR",
+                "Falha ao processar a solicitação",
+                "Não foi possível concluir a operação.",
+                request);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(problem);
     }
 
     @ExceptionHandler(EmailAlreadyExistsException.class)
