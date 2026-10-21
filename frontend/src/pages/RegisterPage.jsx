@@ -158,7 +158,7 @@ export default function RegisterPage() {
               />
               {fieldErrors.password
                 ? <p id="register-password-error" className="field-error">{fieldErrors.password}</p>
-                : <p id="register-password-hint" className="field-hint">Até 72 bytes; espaços digitados fazem parte da senha.</p>}
+                : <p id="register-password-hint" className="field-hint"></p>}
             </div>
 
             <button className="primary-button" type="submit" disabled={isSubmitting}>
