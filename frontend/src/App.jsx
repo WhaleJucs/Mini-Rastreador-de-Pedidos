@@ -3,7 +3,7 @@ import { ProtectedRoute, PublicOnlyRoute } from './components/ProtectedRoute.jsx
 import { useAuth } from './hooks/useAuth.js';
 import LoginPage from './pages/LoginPage.jsx';
 import OrdersPage from './pages/OrdersPage.jsx';
-import ProtectedAreaPage from './pages/ProtectedAreaPage.jsx';
+import NewOrderPage from './pages/NewOrderPage.jsx';
 import RegisterPage from './pages/RegisterPage.jsx';
 
 function HomeRedirect() {
@@ -21,7 +21,7 @@ export default function App() {
       </Route>
       <Route element={<ProtectedRoute />}>
         <Route path="/orders" element={<OrdersPage />} />
-        <Route path="/orders/new" element={<ProtectedAreaPage newOrder />} />
+        <Route path="/orders/new" element={<NewOrderPage />} />
       </Route>
       <Route path="*" element={<HomeRedirect />} />
     </Routes>
