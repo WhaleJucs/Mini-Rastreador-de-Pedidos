@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router';
 import { ProtectedRoute, PublicOnlyRoute } from './components/ProtectedRoute.jsx';
 import { useAuth } from './hooks/useAuth.js';
 import LoginPage from './pages/LoginPage.jsx';
+import OrdersPage from './pages/OrdersPage.jsx';
 import ProtectedAreaPage from './pages/ProtectedAreaPage.jsx';
 import RegisterPage from './pages/RegisterPage.jsx';
 
@@ -19,7 +20,7 @@ export default function App() {
         <Route path="/login" element={<LoginPage />} />
       </Route>
       <Route element={<ProtectedRoute />}>
-        <Route path="/orders" element={<ProtectedAreaPage />} />
+        <Route path="/orders" element={<OrdersPage />} />
         <Route path="/orders/new" element={<ProtectedAreaPage newOrder />} />
       </Route>
       <Route path="*" element={<HomeRedirect />} />
