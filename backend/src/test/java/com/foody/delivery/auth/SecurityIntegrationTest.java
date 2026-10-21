@@ -130,6 +130,18 @@ class SecurityIntegrationTest {
     }
 
     @Test
+    void rejectsMissingInvalidOrOutOfRangeUserSubjects() {
+        for (var subject : new String[] { null, "", "0", "-1", "abc", "1.5", "+1", "01", "9223372036854775808" }) {
+            var claims = JwtClaimsSet.builder().issuer("foody-test")
+                    .issuedAt(INITIAL_TIME).expiresAt(INITIAL_TIME.plusSeconds(3600));
+            if (subject != null) claims.subject(subject);
+            var encoded = jwtEncoder.encode(JwtEncoderParameters.from(
+                    JwsHeader.with(MacAlgorithm.HS256).build(), claims.build())).getTokenValue();
+            assertUnauthorized(exchange(HttpMethod.GET, ORDERS_PATH, null, bearer(encoded)), ORDERS_PATH);
+        }
+    }
+
+    @Test
     void acceptsAValidIssuedTokenBeforeValidatingTheOrderPayload() {
         var token = registerAndLogin();
 

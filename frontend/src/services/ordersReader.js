@@ -32,7 +32,10 @@ export function createOrdersReader({ load, onChange }) {
 
     try {
       const orders = await load({ signal: currentController.signal });
-      if (isCurrent()) publish({ orders, hasLoaded: true, isLoading: false });
+      if (isCurrent()) {
+        publish({ orders, hasLoaded: true, isLoading: false });
+        return orders;
+      }
     } catch (error) {
       if (!isCurrent()) return;
       publish({
@@ -42,6 +45,15 @@ export function createOrdersReader({ load, onChange }) {
     } finally {
       if (isCurrent()) controller = null;
     }
+    return null;
+  }
+
+  function applyConfirmed(order) {
+    if (disposed) return;
+    invalidate();
+    publish({
+      orders: state.orders.map(current => current.id === order.id && current.version <= order.version ? order : current),
+    });
   }
 
   function dispose() {
@@ -51,5 +63,5 @@ export function createOrdersReader({ load, onChange }) {
     controller = null;
   }
 
-  return Object.freeze({ refresh, invalidate, dispose });
+  return Object.freeze({ refresh, invalidate, applyConfirmed, dispose });
 }

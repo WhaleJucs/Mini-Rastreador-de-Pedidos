@@ -8,6 +8,10 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 import com.foody.delivery.auth.DatabaseBusyException;
 import com.foody.delivery.auth.EmailAlreadyExistsException;
 import com.foody.delivery.auth.InvalidCredentialsException;
+import com.foody.delivery.order.InvalidOrderIdException;
+import com.foody.delivery.order.OrderNotFoundException;
+import com.foody.delivery.order.InvalidStatusTransitionException;
+import com.foody.delivery.order.OrderVersionConflictException;
 
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -20,9 +24,38 @@ import org.springframework.transaction.TransactionException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
+
+    @ExceptionHandler({InvalidOrderIdException.class, MethodArgumentTypeMismatchException.class})
+    ResponseEntity<ProblemDetail> handleInvalidOrderId(HttpServletRequest request) {
+        var problem = problem(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", "Dados inválidos",
+                "Informe um identificador inteiro positivo válido.", request);
+        problem.setProperty("violations", List.of(new Violation("id", "Informe um identificador inteiro positivo válido.")));
+        return ResponseEntity.badRequest().body(problem);
+    }
+
+    @ExceptionHandler(OrderNotFoundException.class)
+    ResponseEntity<ProblemDetail> handleOrderNotFound(HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(problem(HttpStatus.NOT_FOUND,
+                "ORDER_NOT_FOUND", "Pedido não encontrado", "O pedido informado não foi encontrado.", request));
+    }
+
+    @ExceptionHandler(InvalidStatusTransitionException.class)
+    ResponseEntity<ProblemDetail> handleInvalidStatusTransition(HttpServletRequest request) {
+        return ResponseEntity.badRequest().body(problem(HttpStatus.BAD_REQUEST,
+                "INVALID_STATUS_TRANSITION", "Mudança de status inválida",
+                "A mudança de status solicitada não é permitida.", request));
+    }
+
+    @ExceptionHandler(OrderVersionConflictException.class)
+    ResponseEntity<ProblemDetail> handleOrderVersionConflict(HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(problem(HttpStatus.CONFLICT,
+                "ORDER_VERSION_CONFLICT", "Pedido alterado",
+                "O pedido foi alterado. Recarregue os dados antes de confirmar uma nova alteração.", request));
+    }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     ResponseEntity<ProblemDetail> handleValidation(

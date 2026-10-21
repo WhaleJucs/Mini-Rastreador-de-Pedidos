@@ -140,3 +140,38 @@ test('a recreated reader works after cleanup without accepting a previous sessio
   assert.equal(previous.snapshots.length, 1);
   current.reader.dispose();
 });
+
+test('confirmed mutations invalidate pending GETs and preserve other order updates', async () => {
+  const { reader, requests, snapshots } = readerFixture();
+  const initial = reader.refresh();
+  requests[0].resolve([{ id: 2, version: 0 }, { id: 1, version: 0 }]);
+  await initial;
+  const pending = reader.refresh();
+  reader.applyConfirmed({ id: 1, version: 1, status: 'EM_PREPARO' });
+  assert.equal(requests[1].signal.aborted, true);
+  reader.applyConfirmed({ id: 2, version: 1, status: 'CANCELADO' });
+  requests[1].resolve([{ id: 2, version: 0 }, { id: 1, version: 0 }]);
+  await pending;
+  assert.deepEqual(snapshots.at(-1).orders, [
+    { id: 2, version: 1, status: 'CANCELADO' }, { id: 1, version: 1, status: 'EM_PREPARO' },
+  ]);
+  reader.applyConfirmed({ id: 1, version: 0 });
+  assert.equal(snapshots.at(-1).orders[1].version, 1);
+  reader.dispose();
+  const count = snapshots.length;
+  reader.applyConfirmed({ id: 1, version: 2 });
+  assert.equal(snapshots.length, count);
+});
+
+test('refresh returns only the current completed read for explicit conflict recovery', async () => {
+  const { reader, requests } = readerFixture();
+  const stale = reader.refresh();
+  reader.invalidate();
+  requests[0].resolve([{ id: 1, version: 0 }]);
+  assert.equal(await stale, null);
+  const latest = reader.refresh();
+  const orders = [{ id: 1, version: 1 }];
+  requests[1].resolve(orders);
+  assert.equal(await latest, orders);
+  reader.dispose();
+});

@@ -25,9 +25,9 @@ export function useOrders() {
   }, [session]);
 
   const refresh = useCallback(() => readerRef.current?.refresh(), []);
-  // Antes de uma mutação futura aplicar dados confirmados, invalida a leitura anterior.
   const invalidate = useCallback(() => readerRef.current?.invalidate(), []);
+  const applyConfirmed = useCallback(order => readerRef.current?.applyConfirmed(order), []);
   const state = snapshot?.session === session ? snapshot.state : INITIAL_STATE;
 
-  return { ...state, refresh, invalidate };
+  return { ...state, refresh, invalidate, applyConfirmed };
 }
