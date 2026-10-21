@@ -64,6 +64,7 @@ export default function OrdersPage() {
 
         <div className="form-field orders-search" role="search" aria-label="Pesquisar pedidos">
           <input id="orders-search" type="search" value={search}
+            aria-label="Pesquisar por ID ou nome do cliente"
             placeholder="Pesquisar por ID ou nome do cliente"
             onChange={event => setSearch(event.target.value)} />
         </div>
