@@ -7,6 +7,7 @@ import java.util.List;
 import com.foody.delivery.auth.DatabaseBusyException;
 import com.foody.delivery.order.dto.CreateOrderRequest;
 import com.foody.delivery.order.dto.OrderResponse;
+import com.foody.delivery.order.dto.StatusUpdateRequest;
 
 import org.springframework.stereotype.Service;
 import org.springframework.dao.DataAccessException;
@@ -44,6 +45,42 @@ public class OrderService {
         try {
             return repository.findById(id).map(OrderResponse::from).orElseThrow(OrderNotFoundException::new);
         } catch (DataAccessException failure) {
+            for (Throwable cause = failure; cause != null; cause = cause.getCause()) {
+                if (cause instanceof SQLiteException sqlite && (sqlite.getResultCode().code & 0xff) == 5) {
+                    throw new DatabaseBusyException(failure);
+                }
+            }
+            throw failure;
+        }
+    }
+
+    public OrderResponse updateStatus(long id, StatusUpdateRequest request) {
+        try {
+            return transaction.execute(transactionStatus -> {
+                var observed = repository.findById(id).orElseThrow(OrderNotFoundException::new);
+                if (observed.version() != request.expectedVersion()) {
+                    throw new OrderVersionConflictException();
+                }
+                var result = OrderStatusTransitions.classify(observed.status(), request.status());
+                if (result == OrderStatusTransitions.Result.NO_OP) {
+                    return OrderResponse.from(observed);
+                }
+                if (result == OrderStatusTransitions.Result.FORBIDDEN) {
+                    throw new InvalidStatusTransitionException();
+                }
+                var updated = repository.updateStatus(id, observed.version(), observed.status(), request.status());
+                if (updated == 0) {
+                    // A releitura apenas classifica a falha; nunca reaplica a intenção.
+                    repository.findById(id).orElseThrow(OrderNotFoundException::new);
+                    throw new OrderVersionConflictException();
+                }
+                if (updated != 1) {
+                    throw new IllegalStateException("Quantidade inesperada de pedidos alterados.");
+                }
+                return repository.findById(id).map(OrderResponse::from).orElseThrow(OrderNotFoundException::new);
+            });
+        } catch (RuntimeException failure) {
+            // TransactionTemplate conclui rollback/cleanup antes de traduzir a contenção.
             for (Throwable cause = failure; cause != null; cause = cause.getCause()) {
                 if (cause instanceof SQLiteException sqlite && (sqlite.getResultCode().code & 0xff) == 5) {
                     throw new DatabaseBusyException(failure);

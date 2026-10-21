@@ -48,6 +48,14 @@ public class OrderRepository {
         return orders.stream().findFirst();
     }
 
+    @Transactional(propagation = Propagation.MANDATORY)
+    public int updateStatus(long id, long expectedVersion, OrderStatus observed, OrderStatus requested) {
+        return jdbcTemplate.update("""
+                UPDATE orders SET status = ?, version = version + 1
+                WHERE id = ? AND version = ? AND status = ?
+                """, requested.name(), id, expectedVersion, observed.name());
+    }
+
     private static List<Order> extractOrders(ResultSet resultSet) throws SQLException {
         var rows = new LinkedHashMap<Long, OrderRows>();
         while (resultSet.next()) {
