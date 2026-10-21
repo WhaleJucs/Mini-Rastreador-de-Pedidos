@@ -12,6 +12,7 @@ const storage = createAuthStorage(env.appEnv);
 
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(() => restoreSession(storage));
+  const [sessionEndReason, setSessionEndReason] = useState(null);
   const [apiReady, setApiReady] = useState(false);
   const sessionRef = useRef(session);
   const generationRef = useRef(0);
@@ -29,19 +30,24 @@ export function AuthProvider({ children }) {
     sessionRef.current = null;
     storage.clear();
     setSession(null);
+    setSessionEndReason(reason);
     return reason;
   }, []);
 
-  const login = useCallback(async credentials => {
+  const login = useCallback(async (credentials, { signal } = {}) => {
     loginControllerRef.current?.abort('Tentativa de login substituída.');
     const controller = new AbortController();
     loginControllerRef.current = controller;
     const attempt = ++loginAttemptRef.current;
     const generation = generationRef.current;
+    const abortFromCaller = () => controller.abort(signal?.reason);
+    if (signal?.aborted) abortFromCaller();
+    else signal?.addEventListener('abort', abortFromCaller, { once: true });
     let response;
     try {
       response = await requestLogin(credentials, { signal: controller.signal });
     } finally {
+      signal?.removeEventListener('abort', abortFromCaller);
       if (loginControllerRef.current === controller) loginControllerRef.current = null;
     }
     if (attempt !== loginAttemptRef.current || generation !== generationRef.current) {
@@ -53,6 +59,7 @@ export function AuthProvider({ children }) {
     sessionRef.current = nextSession;
     storage.write(nextSession);
     setSession(nextSession);
+    setSessionEndReason(null);
     return nextSession;
   }, []);
 
@@ -92,10 +99,11 @@ export function AuthProvider({ children }) {
     session,
     user: session?.user ?? null,
     isAuthenticated: session !== null,
+    sessionEndReason,
     login,
     logout,
     register: requestRegistration,
-  }), [login, logout, session]);
+  }), [login, logout, session, sessionEndReason]);
 
   return <AuthContext value={value}>{apiReady ? children : null}</AuthContext>;
 }

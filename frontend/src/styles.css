@@ -219,6 +219,12 @@ a {
   color: #145c35;
 }
 
+.form-message-info {
+  border: 1px solid #e5dcd8;
+  background: #faf5f3;
+  color: #5b534f;
+}
+
 .primary-button {
   min-height: 3.625rem;
   margin-top: 0.25rem;
@@ -264,6 +270,96 @@ a {
   color: #c50101;
   font-weight: 800;
   text-underline-offset: 0.2em;
+}
+
+.primary-link {
+  display: inline-flex;
+  min-height: 3.25rem;
+  align-items: center;
+  justify-content: center;
+  padding: 0.875rem 1.5rem;
+  border-radius: 999px;
+  background: #ff5c5c;
+  color: #fff;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.primary-link:hover {
+  background: #d30101;
+}
+
+.protected-page {
+  min-height: 100vh;
+  padding: 0 1.5rem 4rem;
+}
+
+.app-header {
+  display: flex;
+  width: min(100%, 75rem);
+  min-height: 4.5rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  margin: 0 auto;
+}
+
+.app-session,
+.protected-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.app-session span {
+  color: #5b534f;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.secondary-button {
+  padding: 0.65rem 1.1rem;
+  border: 1px solid #e5dcd8;
+  border-radius: 999px;
+  background: #fff;
+  color: #c50101;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.secondary-button:hover {
+  border-color: #ff5c5c;
+  background: #fff6f5;
+}
+
+.protected-card {
+  width: min(100%, 71.25rem);
+  margin: 4rem auto 0;
+  padding: clamp(2rem, 5vw, 4rem);
+  border: 1px solid #efe6e2;
+  border-radius: 1.375rem;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(36, 30, 28, 0.05);
+}
+
+.protected-card .eyebrow {
+  color: #d30101;
+}
+
+.protected-card h1 {
+  margin: 0;
+  font-size: clamp(2rem, 6vw, 3.5rem);
+  line-height: 1.08;
+}
+
+.protected-card > p:not(.eyebrow) {
+  max-width: 34rem;
+  margin: 1rem 0 0;
+  color: #5b534f;
+}
+
+.protected-actions {
+  margin-top: 2rem;
 }
 
 .placeholder-page {
@@ -327,6 +423,18 @@ a {
     border: 0;
     border-radius: 1.5rem 1.5rem 0 0;
     box-shadow: none;
+  }
+
+  .app-header {
+    min-height: 4rem;
+  }
+
+  .app-session span {
+    display: none;
+  }
+
+  .protected-card {
+    margin-top: 2rem;
   }
 }
 
