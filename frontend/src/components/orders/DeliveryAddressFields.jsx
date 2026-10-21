@@ -8,7 +8,7 @@ const FIELDS = [
   { field: 'zipCode', label: 'CEP (opcional)', autoComplete: 'postal-code', hint: 'Formato: 00000-000.', optional: true },
 ];
 
-export default function DeliveryAddressFields({ address, errors, onChange }) {
+export default function DeliveryAddressFields({ address, errors, onChange, cepLookup }) {
   return (
     <fieldset className="order-form-section">
       <legend>Endereço de entrega</legend>
@@ -40,6 +40,17 @@ export default function DeliveryAddressFields({ address, errors, onChange }) {
             </div>
           );
         })}
+      </div>
+      <div className="order-items-actions">
+        <button className="secondary-button" type="button" onClick={cepLookup.lookup} disabled={cepLookup.isLoading}>
+          {cepLookup.isLoading ? 'Buscando endereço…' : 'Buscar endereço por CEP'}
+        </button>
+        <p className="field-hint">A busca é opcional. Você pode preencher e corrigir o endereço manualmente.</p>
+      </div>
+      <div aria-live="polite" aria-busy={cepLookup.isLoading}>
+        {cepLookup.isLoading && <p className="field-hint" role="status">Consultando CEP…</p>}
+        {cepLookup.message && <p className="field-hint" role="status">{cepLookup.message}</p>}
+        {cepLookup.error && <p className="field-error" role="alert">{cepLookup.error}</p>}
       </div>
     </fieldset>
   );

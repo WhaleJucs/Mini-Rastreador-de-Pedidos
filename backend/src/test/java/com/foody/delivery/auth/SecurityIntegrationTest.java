@@ -133,7 +133,9 @@ class SecurityIntegrationTest {
     void acceptsAValidIssuedTokenBeforeValidatingTheOrderPayload() {
         var token = registerAndLogin();
 
-        var response = exchange(HttpMethod.POST, ORDERS_PATH, "{not-json", bearer(token));
+        var headers = bearer(token);
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        var response = exchange(HttpMethod.POST, ORDERS_PATH, "{not-json", headers);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
         assertThat(response.getBody().path("code").asText()).isEqualTo("VALIDATION_ERROR");

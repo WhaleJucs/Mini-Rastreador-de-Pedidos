@@ -4,8 +4,9 @@ import DeliveryAddressFields from '../components/orders/DeliveryAddressFields.js
 import OrderItemsFields from '../components/orders/OrderItemsFields.jsx';
 import { useAuth } from '../hooks/useAuth.js';
 import { useCreateOrder } from '../hooks/useCreateOrder.js';
+import { useCepLookup } from '../hooks/useCepLookup.js';
 import { orderFieldErrorsForForm } from '../services/createOrder.js';
-import { createOrderItem, createOrderPayload, itemFieldName, OrderValidationError } from '../utils/orderValidation.js';
+import { createOrderItem, createOrderPayload, formatZipCodeInput, itemFieldName, OrderValidationError } from '../utils/orderValidation.js';
 
 export default function NewOrderPage() {
   const { logout, user } = useAuth();
@@ -24,6 +25,17 @@ export default function NewOrderPage() {
   const [focusField, setFocusField] = useState(null);
   const formRef = useRef(null);
   const nextItemId = useRef(2);
+  const applyCepAddress = useCallback(patch => {
+    const normalized = { ...patch };
+    if (normalized.zipCode) normalized.zipCode = formatZipCodeInput(normalized.zipCode);
+    setForm(current => ({ ...current, deliveryAddress: { ...current.deliveryAddress, ...normalized } }));
+    setFieldErrors(current => {
+      const next = { ...current };
+      for (const field of Object.keys(normalized)) delete next[`deliveryAddress.${field}`];
+      return next;
+    });
+  }, []);
+  const cepLookup = useCepLookup({ address: form.deliveryAddress, onApply: applyCepAddress });
 
   useEffect(() => {
     if (!focusField) return;
@@ -49,6 +61,7 @@ export default function NewOrderPage() {
   }
 
   function updateAddress(field, value) {
+    cepLookup.edit(field);
     setForm(current => ({ ...current, deliveryAddress: { ...current.deliveryAddress, [field]: value } }));
     clearFieldError(`deliveryAddress.${field}`);
   }
@@ -104,6 +117,7 @@ export default function NewOrderPage() {
     }
     setFieldErrors({});
     setFormMessage(null);
+    cepLookup.cancel();
     const result = await submit(payload);
     if (result?.error) {
       const errors = orderFieldErrorsForForm(result.error.fieldErrors, form.items);
@@ -169,7 +183,7 @@ export default function NewOrderPage() {
               onAdd={addItem}
               onRemove={removeItem}
             />
-            <DeliveryAddressFields address={form.deliveryAddress} errors={fieldErrors} onChange={updateAddress} />
+            <DeliveryAddressFields address={form.deliveryAddress} errors={fieldErrors} onChange={updateAddress} cepLookup={cepLookup} />
           </fieldset>
 
           {isSubmitting && <p className="order-section-description" role="status">Criando pedido…</p>}
