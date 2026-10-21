@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { orderStatusLabel } from '../../utils/orderStatusLabel.js';
 
 export default function OrderStatusSelect({ id, value, options, disabled, onChange }) {
   const rootRef = useRef(null);
@@ -58,7 +59,7 @@ export default function OrderStatusSelect({ id, value, options, disabled, onChan
         aria-expanded={open} aria-activedescendant={open ? `${id}-option-${activeIndex}` : undefined}
         disabled={disabled} onKeyDown={handleKeyDown}
         onClick={() => { if (open) setExpanded(false); else showOptions(); }}>
-        <span>{value || 'Selecione o status'}</span>
+        <span>{value ? orderStatusLabel(value) : 'Selecione o status'}</span>
         <span className="order-status-select-arrow" aria-hidden="true" />
       </button>
       {open && (
@@ -67,7 +68,7 @@ export default function OrderStatusSelect({ id, value, options, disabled, onChan
             <li id={`${id}-option-${index}`} key={status} role="option" aria-selected={status === value}
               className={index === activeIndex ? 'order-status-option-active' : undefined}
               onPointerMove={() => setActiveIndex(index)} onPointerDown={event => event.preventDefault()}
-              onClick={() => choose(index)}>{status}</li>
+              onClick={() => choose(index)}>{orderStatusLabel(status)}</li>
           ))}
         </ul>
       )}
