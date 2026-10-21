@@ -57,6 +57,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
+import org.springframework.test.util.AopTestUtils;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -286,7 +287,7 @@ class UpdateOrderStatusIntegrationTest {
     @Test
     void zeroAffectedRowsIsAConflictForAnExistingOrder() throws Exception {
         var before = storedOrders();
-        doReturn(0).when(repository).updateStatus(first.path("id").asLong(), 0, OrderStatus.RECEBIDO, OrderStatus.EM_PREPARO);
+        doReturn(0).when(repositorySpy()).updateStatus(first.path("id").asLong(), 0, OrderStatus.RECEBIDO, OrderStatus.EM_PREPARO);
         assertError(patch(first.path("id").asText(), payload("EM_PREPARO", 0), token), 409, "ORDER_VERSION_CONFLICT");
         assertThat(storedOrders()).isEqualTo(before);
     }
@@ -300,7 +301,7 @@ class UpdateOrderStatusIntegrationTest {
             jdbcTemplate.update("DELETE FROM order_items WHERE order_id = ?", id);
             jdbcTemplate.update("DELETE FROM orders WHERE id = ?", id);
             return 0;
-        }).when(repository).updateStatus(id, 0, OrderStatus.RECEBIDO, OrderStatus.EM_PREPARO);
+        }).when(repositorySpy()).updateStatus(id, 0, OrderStatus.RECEBIDO, OrderStatus.EM_PREPARO);
         assertError(patch(Long.toString(id), payload("EM_PREPARO", 0), token), 404, "ORDER_NOT_FOUND");
         assertThat(storedOrders()).isEqualTo(before);
         assertThat(storedItems()).isEqualTo(itemsBefore);
@@ -368,8 +369,12 @@ class UpdateOrderStatusIntegrationTest {
                 }
             }
             return observed;
-        }).when(repository).findById(id);
+        }).when(repositorySpy()).findById(id);
         return connections;
+    }
+
+    private OrderRepository repositorySpy() {
+        return AopTestUtils.getUltimateTargetObject(repository);
     }
 
     @Test

@@ -1,6 +1,6 @@
 const dateFormatter = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
 
-export default function OrderCard({ order }) {
+export default function OrderCard({ order, children }) {
   const { deliveryAddress: address } = order;
   return (
     <article className="order-card" aria-labelledby={`order-title-${order.id}`}>
@@ -38,6 +38,7 @@ export default function OrderCard({ order }) {
           </address>
         </section>
       </div>
+      {children}
     </article>
   );
 }
