@@ -46,7 +46,7 @@ export default function OrdersPage() {
           <div>
             <p className="eyebrow">Acompanhe as entregas</p>
             <h1 id="orders-title">Pedidos</h1>
-            <p>Todos os pedidos, dos mais recentes aos mais antigos.</p>
+            <p>Seus pedidos, dos mais recentes aos mais antigos.</p>
           </div>
           <div className="orders-actions">
             <button className="secondary-button" type="button" onClick={refresh} disabled={isLoading}>

@@ -35,25 +35,25 @@ public class OrderRepository {
         this.jdbcTemplate = jdbcTemplate;
     }
 
-    public List<Order> findAll() {
+    public List<Order> findAll(long userId) {
         // Instant.toString() tem frações de segundo de tamanho variável. Remover apenas o Z
         // mantém a ordenação cronológica inclusive entre um segundo inteiro e sua fração.
-        return jdbcTemplate.query(ORDER_SELECT + "ORDER BY rtrim(o.created_at, 'Z') DESC, o.id DESC, i.id ASC",
-                (ResultSetExtractor<List<Order>>) OrderRepository::extractOrders);
+        return jdbcTemplate.query(ORDER_SELECT + "WHERE o.user_id = ? ORDER BY rtrim(o.created_at, 'Z') DESC, o.id DESC, i.id ASC",
+                (ResultSetExtractor<List<Order>>) OrderRepository::extractOrders, userId);
     }
 
-    public Optional<Order> findById(long id) {
-        var orders = jdbcTemplate.query(ORDER_SELECT + "WHERE o.id = ? ORDER BY i.id ASC",
-                (ResultSetExtractor<List<Order>>) OrderRepository::extractOrders, id);
+    public Optional<Order> findById(long id, long userId) {
+        var orders = jdbcTemplate.query(ORDER_SELECT + "WHERE o.id = ? AND o.user_id = ? ORDER BY i.id ASC",
+                (ResultSetExtractor<List<Order>>) OrderRepository::extractOrders, id, userId);
         return orders.stream().findFirst();
     }
 
     @Transactional(propagation = Propagation.MANDATORY)
-    public int updateStatus(long id, long expectedVersion, OrderStatus observed, OrderStatus requested) {
+    public int updateStatus(long id, long userId, long expectedVersion, OrderStatus observed, OrderStatus requested) {
         return jdbcTemplate.update("""
                 UPDATE orders SET status = ?, version = version + 1
-                WHERE id = ? AND version = ? AND status = ?
-                """, requested.name(), id, expectedVersion, observed.name());
+                WHERE id = ? AND version = ? AND status = ? AND user_id = ?
+                """, requested.name(), id, expectedVersion, observed.name(), userId);
     }
 
     private static List<Order> extractOrders(ResultSet resultSet) throws SQLException {
@@ -83,14 +83,14 @@ public class OrderRepository {
     }
 
     @Transactional(propagation = Propagation.MANDATORY)
-    public Order insert(CreateOrderRequest request, Instant createdAt) {
+    public Order insert(long userId, CreateOrderRequest request, Instant createdAt) {
         var address = request.deliveryAddress();
         var keyHolder = new GeneratedKeyHolder();
         jdbcTemplate.update(connection -> {
             var statement = connection.prepareStatement("""
                     INSERT INTO orders (customer_name, street, number, city, state, zip_code,
-                                        status, created_at, version)
-                    VALUES (?, ?, ?, ?, ?, ?, 'RECEBIDO', ?, 0)
+                                        status, created_at, version, user_id)
+                    VALUES (?, ?, ?, ?, ?, ?, 'RECEBIDO', ?, 0, ?)
                     """, Statement.RETURN_GENERATED_KEYS);
             statement.setString(1, request.customerName());
             statement.setString(2, address.street());
@@ -99,6 +99,7 @@ public class OrderRepository {
             statement.setString(5, address.state());
             statement.setString(6, address.zipCode());
             statement.setString(7, createdAt.toString());
+            statement.setLong(8, userId);
             return statement;
         }, keyHolder);
         var orderId = generatedId(keyHolder);

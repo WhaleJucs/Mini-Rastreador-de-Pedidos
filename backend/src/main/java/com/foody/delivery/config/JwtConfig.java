@@ -17,6 +17,7 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.JwtIssuerValidator;
+import org.springframework.security.oauth2.jwt.JwtClaimValidator;
 import org.springframework.security.oauth2.jwt.JwtTimestampValidator;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
@@ -43,8 +44,18 @@ public class JwtConfig {
         timestampValidator.setClock(clock);
         decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<Jwt>(
                 timestampValidator,
-                new JwtIssuerValidator(properties.jwt().issuer())));
+                new JwtIssuerValidator(properties.jwt().issuer()),
+                new JwtClaimValidator<String>("sub", JwtConfig::isUserId)));
         return decoder;
+    }
+
+    private static boolean isUserId(String subject) {
+        if (subject == null || !subject.matches("[1-9][0-9]*")) return false;
+        try {
+            return Long.parseLong(subject) > 0;
+        } catch (NumberFormatException failure) {
+            return false;
+        }
     }
 
     private static SecretKey secretKey(AppProperties properties) {

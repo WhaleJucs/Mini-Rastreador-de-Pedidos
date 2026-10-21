@@ -113,7 +113,8 @@ class DatabaseIntegrationTest {
                 .containsEntry("number", "S/N").containsEntry("zip_code", null);
         assertSqliteFailure(catchThrowable(() -> jdbc.update("UPDATE orders SET status = ? WHERE id = ?", "INVALIDO", 1)), 275);
         assertSqliteFailure(catchThrowable(() -> jdbc.update("UPDATE orders SET version = ? WHERE id = ?", -1, 1)), 275);
-        for (var column : new String[] {"street", "number", "city", "state"}) {
+        assertSqliteFailure(catchThrowable(() -> jdbc.update("UPDATE orders SET user_id = ? WHERE id = ?", 999, 1)), 787);
+        for (var column : new String[] {"street", "number", "city", "state", "user_id"}) {
             // Column names come only from this fixed test list; values remain parameters.
             assertSqliteFailure(catchThrowable(() -> jdbc.update("UPDATE orders SET " + column + " = ? WHERE id = ?", null, 1)), 1299);
         }
@@ -208,12 +209,14 @@ class DatabaseIntegrationTest {
         insertItem(1, "Item", 1);
         for (var query : new String[] {
                 "SELECT * FROM orders WHERE id = 1",
+                "SELECT * FROM orders WHERE user_id = 1",
                 "SELECT * FROM users WHERE email = 'index@example.invalid'",
                 "SELECT * FROM order_items WHERE order_id = 1 ORDER BY id"}) {
             var plans = jdbc.queryForList("EXPLAIN QUERY PLAN " + query);
             assertThat(plans).anySatisfy(plan -> assertThat(plan.get("detail").toString()).contains("SEARCH"));
         }
-        assertThat(jdbc.queryForList("PRAGMA index_list('orders')")).isEmpty();
+        assertThat(jdbc.queryForList("PRAGMA index_list('orders')"))
+                .singleElement().satisfies(index -> assertThat(index.get("name")).isEqualTo("idx_orders_user_id"));
         assertThat(jdbc.queryForList("PRAGMA index_list('order_items')"))
                 .singleElement().satisfies(index -> assertThat(index.get("name")).isEqualTo("idx_order_items_order_id"));
     }
@@ -225,8 +228,12 @@ class DatabaseIntegrationTest {
 
     private void insertOrder(long id) {
         jdbc.update("""
-                INSERT INTO orders(id, customer_name, street, number, city, state, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                INSERT OR IGNORE INTO users(id, name, email, password_hash)
+                VALUES (1, 'Usuário fictício', 'owner@example.invalid', 'HASH_FICTICIO_NAO_UTILIZAVEL')
+                """);
+        jdbc.update("""
+                INSERT INTO orders(id, customer_name, street, number, city, state, created_at, user_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, 1)
                 """, id, "Destinatário fictício", "Rua de Teste", "S/N", "Cidade de Teste", "SP", "2026-10-19T12:00:00Z");
     }
 

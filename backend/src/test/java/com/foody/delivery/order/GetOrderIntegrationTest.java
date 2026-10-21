@@ -72,7 +72,7 @@ class GetOrderIntegrationTest {
     }
 
     @Test
-    void returnsOnlyTheRequestedOrderWithItsItemsAddressAndPersistedMetadataToEitherUser() {
+    void returnsTheCompleteOrderOnlyToItsOwner() {
         var firstToken = registerAndLogin("get-first@example.invalid");
         var secondToken = registerAndLogin("get-second@example.invalid");
         var firstOrder = create(firstToken, "Destinatário A", List.of(
@@ -84,19 +84,25 @@ class GetOrderIntegrationTest {
         jdbcTemplate.update("UPDATE orders SET status = ?, version = ? WHERE id = ?", "EM_PREPARO", 3, firstId);
         ((ObjectNode) firstOrder).put("status", "EM_PREPARO").put("version", 3);
 
-        for (var token : List.of(firstToken, secondToken)) {
-            var firstResponse = get(Long.toString(firstId), token);
-            var secondResponse = get(secondOrder.path("id").asText(), token);
+        for (var pair : List.of(Map.entry(firstToken, firstOrder), Map.entry(secondToken, secondOrder))) {
+            var expected = pair.getValue();
+            var firstResponse = get(expected.path("id").asText(), pair.getKey());
 
             assertThat(firstResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
             assertThat(firstResponse.getHeaders().getContentType()).isEqualTo(MediaType.APPLICATION_JSON);
-            assertThat(firstResponse.getBody()).isEqualTo(firstOrder);
-            assertThat(secondResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
-            assertThat(secondResponse.getBody()).isEqualTo(secondOrder);
+            assertThat(firstResponse.getBody()).isEqualTo(expected);
             assertThat(firstResponse.getBody().fieldNames()).toIterable().containsExactlyInAnyOrder(
                     "id", "customerName", "deliveryAddress", "items", "status", "createdAt", "version");
-            assertThat(firstResponse.getBody().path("items").get(0).path("id").asLong())
-                    .isLessThan(firstResponse.getBody().path("items").get(1).path("id").asLong());
+        }
+        assertThat(firstOrder.path("items").get(0).path("id").asLong())
+                .isLessThan(firstOrder.path("items").get(1).path("id").asLong());
+        for (var pair : List.of(Map.entry(firstToken, secondOrder), Map.entry(secondToken, firstOrder))) {
+            var foreign = get(pair.getValue().path("id").asText(), pair.getKey());
+            var missing = get(Long.toString(Long.MAX_VALUE), pair.getKey());
+            assertThat(foreign.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+            assertThat(foreign.getBody().path("code").asText()).isEqualTo("ORDER_NOT_FOUND");
+            assertThat(foreign.getBody().path("detail")).isEqualTo(missing.getBody().path("detail"));
+            assertThat(foreign.getBody().toString()).doesNotContain("Destinatário", "Produto", "userId", "user_id");
         }
         assertThat(jdbcTemplate.queryForObject("SELECT count(*) FROM orders", Integer.class)).isEqualTo(2);
         assertThat(jdbcTemplate.queryForObject("SELECT count(*) FROM order_items", Integer.class)).isEqualTo(3);

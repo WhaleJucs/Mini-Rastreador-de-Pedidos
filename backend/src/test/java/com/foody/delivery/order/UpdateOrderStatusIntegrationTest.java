@@ -109,6 +109,10 @@ class UpdateOrderStatusIntegrationTest {
         jdbcTemplate.update("DELETE FROM order_items");
         jdbcTemplate.update("DELETE FROM orders");
         jdbcTemplate.update("DELETE FROM users");
+        jdbcTemplate.update("""
+                INSERT INTO users(id, name, email, password_hash)
+                VALUES (1, 'Usuário de teste', 'owner@example.invalid', 'HASH_FICTICIO_NAO_UTILIZAVEL')
+                """);
         token = token("foody-test", NOW, NOW.plusSeconds(3600));
         first = create("Destinatário A", token);
         second = create("Destinatário B", token);
@@ -257,13 +261,23 @@ class UpdateOrderStatusIntegrationTest {
     }
 
     @Test
-    void eitherAuthenticatedUserCanUpdateAnOrderWithoutOwnershipRules() throws Exception {
+    void onlyTheOwnerCanUpdateAnOrderAndForeignAccessLooksAbsent() throws Exception {
         var firstToken = registerAndLogin("update-first@example.invalid");
         var secondToken = registerAndLogin("update-second@example.invalid");
-        var order = create("Destinatário compartilhado", firstToken);
-        assertThat(patch(order.path("id").asText(), payload("EM_PREPARO", 0), secondToken).status()).isEqualTo(200);
-        assertThat(patch(order.path("id").asText(), payload("SAIU_PARA_ENTREGA", 1), firstToken).status()).isEqualTo(200);
-        assertThat(read(order.path("id").asLong()).path("version").asLong()).isEqualTo(2);
+        var order = create("Destinatário exclusivo", firstToken);
+        var before = storedOrders();
+        var itemsBefore = storedItems();
+        for (var status : List.of("RECEBIDO", "EM_PREPARO", "CANCELADO", "ENTREGUE")) {
+            for (var version : List.of(0, 1)) {
+                assertError(patch(order.path("id").asText(), payload(status, version), secondToken), 404, "ORDER_NOT_FOUND");
+                assertError(patch(first.path("id").asText(), payload(status, version), firstToken), 404, "ORDER_NOT_FOUND");
+            }
+        }
+        assertThat(storedOrders()).isEqualTo(before);
+        assertThat(storedItems()).isEqualTo(itemsBefore);
+        var updated = patch(order.path("id").asText(), payload("EM_PREPARO", 0), firstToken);
+        assertThat(updated.status()).isEqualTo(200);
+        assertThat(updated.body().path("version").asLong()).isEqualTo(1);
     }
 
     @Test
@@ -271,11 +285,12 @@ class UpdateOrderStatusIntegrationTest {
         var id = first.path("id").asLong();
         var itemsBefore = storedItems();
         new TransactionTemplate(transactionManager).executeWithoutResult(status -> {
-            assertThat(repository.updateStatus(Long.MAX_VALUE, 0, OrderStatus.RECEBIDO, OrderStatus.EM_PREPARO)).isZero();
-            assertThat(repository.updateStatus(id, 1, OrderStatus.RECEBIDO, OrderStatus.EM_PREPARO)).isZero();
-            assertThat(repository.updateStatus(id, 0, OrderStatus.EM_PREPARO, OrderStatus.SAIU_PARA_ENTREGA)).isZero();
-            assertThat(repository.updateStatus(id, 0, OrderStatus.RECEBIDO, OrderStatus.EM_PREPARO)).isOne();
-            assertThat(repository.updateStatus(id, 0, OrderStatus.RECEBIDO, OrderStatus.CANCELADO)).isZero();
+            assertThat(repository.updateStatus(Long.MAX_VALUE, 1, 0, OrderStatus.RECEBIDO, OrderStatus.EM_PREPARO)).isZero();
+            assertThat(repository.updateStatus(id, 999, 0, OrderStatus.RECEBIDO, OrderStatus.EM_PREPARO)).isZero();
+            assertThat(repository.updateStatus(id, 1, 1, OrderStatus.RECEBIDO, OrderStatus.EM_PREPARO)).isZero();
+            assertThat(repository.updateStatus(id, 1, 0, OrderStatus.EM_PREPARO, OrderStatus.SAIU_PARA_ENTREGA)).isZero();
+            assertThat(repository.updateStatus(id, 1, 0, OrderStatus.RECEBIDO, OrderStatus.EM_PREPARO)).isOne();
+            assertThat(repository.updateStatus(id, 1, 0, OrderStatus.RECEBIDO, OrderStatus.CANCELADO)).isZero();
         });
         var expected = first.deepCopy();
         ((ObjectNode) expected).put("status", "EM_PREPARO").put("version", 1);
@@ -287,7 +302,7 @@ class UpdateOrderStatusIntegrationTest {
     @Test
     void zeroAffectedRowsIsAConflictForAnExistingOrder() throws Exception {
         var before = storedOrders();
-        doReturn(0).when(repositorySpy()).updateStatus(first.path("id").asLong(), 0, OrderStatus.RECEBIDO, OrderStatus.EM_PREPARO);
+        doReturn(0).when(repositorySpy()).updateStatus(first.path("id").asLong(), 1, 0, OrderStatus.RECEBIDO, OrderStatus.EM_PREPARO);
         assertError(patch(first.path("id").asText(), payload("EM_PREPARO", 0), token), 409, "ORDER_VERSION_CONFLICT");
         assertThat(storedOrders()).isEqualTo(before);
     }
@@ -301,7 +316,7 @@ class UpdateOrderStatusIntegrationTest {
             jdbcTemplate.update("DELETE FROM order_items WHERE order_id = ?", id);
             jdbcTemplate.update("DELETE FROM orders WHERE id = ?", id);
             return 0;
-        }).when(repositorySpy()).updateStatus(id, 0, OrderStatus.RECEBIDO, OrderStatus.EM_PREPARO);
+        }).when(repositorySpy()).updateStatus(id, 1, 0, OrderStatus.RECEBIDO, OrderStatus.EM_PREPARO);
         assertError(patch(Long.toString(id), payload("EM_PREPARO", 0), token), 404, "ORDER_NOT_FOUND");
         assertThat(storedOrders()).isEqualTo(before);
         assertThat(storedItems()).isEqualTo(itemsBefore);
@@ -369,7 +384,7 @@ class UpdateOrderStatusIntegrationTest {
                 }
             }
             return observed;
-        }).when(repositorySpy()).findById(id);
+        }).when(repositorySpy()).findById(id, 1);
         return connections;
     }
 
