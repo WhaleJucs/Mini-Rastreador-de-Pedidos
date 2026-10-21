@@ -423,6 +423,11 @@ a {
   outline-offset: 3px;
 }
 
+.orders-search {
+  max-width: 36rem;
+  margin-top: 1.5rem;
+}
+
 .orders-loading {
   min-height: 1.5rem;
   margin: 1.5rem 0 0.75rem;

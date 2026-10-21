@@ -12,6 +12,12 @@ export default function OrdersPage() {
   const statusUpdate = useUpdateOrderStatus({ invalidate, applyConfirmed, refresh });
   const navigate = useNavigate();
   const location = useLocation();
+  const [search, setSearch] = useState('');
+  const searchTerm = search.trim().toLocaleLowerCase('pt-BR');
+  const filteredOrders = searchTerm
+    ? orders.filter(order => String(order.id).includes(searchTerm)
+      || order.customerName.toLocaleLowerCase('pt-BR').includes(searchTerm))
+    : orders;
   const [createdOrderId] = useState(() => {
     const id = location.state?.createdOrderId;
     return Number.isSafeInteger(id) && id > 0 ? id : null;
@@ -56,6 +62,12 @@ export default function OrdersPage() {
           </div>
         </header>
 
+        <div className="form-field orders-search" role="search" aria-label="Pesquisar pedidos">
+          <input id="orders-search" type="search" value={search}
+            placeholder="Pesquisar por ID ou nome do cliente"
+            onChange={event => setSearch(event.target.value)} />
+        </div>
+
         {createdOrderId && (
           <div className="form-message form-message-success" role="status">
             Pedido #{createdOrderId} criado com sucesso.
@@ -84,9 +96,15 @@ export default function OrdersPage() {
               <Link className="text-link" to="/orders/new">Criar pedido</Link>
             </div>
           )}
-          {orders.length > 0 && (
+          {hasLoaded && orders.length > 0 && filteredOrders.length === 0 && !error && !isLoading && (
+            <div className="orders-empty" role="status">
+              <h2>Nenhum pedido encontrado</h2>
+              <p>Tente outro ID ou nome do cliente.</p>
+            </div>
+          )}
+          {filteredOrders.length > 0 && (
             <ul className="orders-list" aria-label="Pedidos cadastrados">
-              {orders.map(order => (
+              {filteredOrders.map(order => (
                 <li key={order.id}>
                   <OrderCard order={order}>
                     <OrderStatusControl order={order} state={statusUpdate.states[order.id]}
