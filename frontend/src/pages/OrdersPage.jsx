@@ -1,4 +1,5 @@
-import { Link, useNavigate } from 'react-router';
+import { useEffect, useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router';
 import OrderCard from '../components/orders/OrderCard.jsx';
 import { useAuth } from '../hooks/useAuth.js';
 import { useOrders } from '../hooks/useOrders.js';
@@ -7,6 +8,17 @@ export default function OrdersPage() {
   const { logout, user } = useAuth();
   const { orders, hasLoaded, isLoading, error, refresh } = useOrders();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [createdOrderId] = useState(() => {
+    const id = location.state?.createdOrderId;
+    return Number.isSafeInteger(id) && id > 0 ? id : null;
+  });
+
+  useEffect(() => {
+    if (location.state?.createdOrderId !== undefined) {
+      navigate(location.pathname, { replace: true, state: null });
+    }
+  }, [location.pathname, location.state, navigate]);
 
   function handleLogout() {
     logout();
@@ -40,6 +52,12 @@ export default function OrdersPage() {
             <Link className="primary-link" to="/orders/new">Novo pedido</Link>
           </div>
         </header>
+
+        {createdOrderId && (
+          <div className="form-message form-message-success" role="status">
+            Pedido #{createdOrderId} criado com sucesso.
+          </div>
+        )}
 
         <p className="orders-loading" role="status" aria-live="polite">
           {isLoading ? (hasLoaded ? 'Atualizando pedidos…' : 'Carregando pedidos…') : ''}

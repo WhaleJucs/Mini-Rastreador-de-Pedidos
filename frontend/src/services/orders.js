@@ -87,6 +87,13 @@ export function ordersResultFrom(response) {
   });
 }
 
+export function createdOrderResultFrom(response) {
+  if (response?.status !== 201) throw new OrdersResponseError();
+  const order = orderFrom(response.data);
+  if (order.status !== 'RECEBIDO' || order.version !== 0) throw new OrdersResponseError();
+  return order;
+}
+
 export function ordersErrorMessage(error) {
   if (error instanceof OrdersResponseError) return error.message;
   if (error?.response?.status === 401) return 'Sua sessão expirou. Entre novamente.';

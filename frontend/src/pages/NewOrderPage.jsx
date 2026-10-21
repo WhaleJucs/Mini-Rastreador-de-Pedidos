@@ -1,13 +1,19 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import DeliveryAddressFields from '../components/orders/DeliveryAddressFields.jsx';
 import OrderItemsFields from '../components/orders/OrderItemsFields.jsx';
 import { useAuth } from '../hooks/useAuth.js';
-import { createOrderItem, itemFieldName, validateOrder } from '../utils/orderValidation.js';
+import { useCreateOrder } from '../hooks/useCreateOrder.js';
+import { orderFieldErrorsForForm } from '../services/createOrder.js';
+import { createOrderItem, createOrderPayload, itemFieldName, OrderValidationError } from '../utils/orderValidation.js';
 
 export default function NewOrderPage() {
   const { logout, user } = useAuth();
   const navigate = useNavigate();
+  const handleCreated = useCallback(order => {
+    navigate('/orders', { replace: true, state: { createdOrderId: order.id } });
+  }, [navigate]);
+  const { isSubmitting, isUncertain, error, submit, clearError } = useCreateOrder({ onSuccess: handleCreated });
   const [form, setForm] = useState(() => ({
     customerName: '',
     deliveryAddress: { street: '', number: '', city: '', state: '', zipCode: '' },
@@ -33,6 +39,7 @@ export default function NewOrderPage() {
       return next;
     });
     setFormMessage(null);
+    clearError();
   }
 
   function updateCustomerName(event) {
@@ -77,17 +84,32 @@ export default function NewOrderPage() {
     setFocusField(itemFieldName(remaining[Math.min(index, remaining.length - 1)].rowId, 'productName'));
   }
 
-  function handleValidate(event) {
+  function focusFirstError(errors) {
+    const firstField = Object.keys(errors).find(name => formRef.current?.elements.namedItem(name));
+    if (firstField) setFocusField(firstField);
+  }
+
+  async function handleSubmit(event) {
     event.preventDefault();
-    const errors = validateOrder(form);
-    setFieldErrors(errors);
-    if (Object.keys(errors).length > 0) {
+    if (isSubmitting || isUncertain) return;
+    let payload;
+    try {
+      payload = createOrderPayload(form);
+    } catch (failure) {
+      if (!(failure instanceof OrderValidationError)) throw failure;
+      setFieldErrors(failure.fieldErrors);
       setFormMessage({ type: 'error', text: 'Revise os campos destacados.' });
-      const firstField = Object.keys(errors).find(name => formRef.current?.elements.namedItem(name));
-      formRef.current?.elements.namedItem(firstField)?.focus();
+      focusFirstError(failure.fieldErrors);
       return;
     }
-    setFormMessage({ type: 'info', text: 'Dados conferidos. O pedido ainda não foi enviado.' });
+    setFieldErrors({});
+    setFormMessage(null);
+    const result = await submit(payload);
+    if (result?.error) {
+      const errors = orderFieldErrorsForForm(result.error.fieldErrors, form.items);
+      setFieldErrors(errors);
+      focusFirstError(errors);
+    }
   }
 
   function handleLogout() {
@@ -116,39 +138,50 @@ export default function NewOrderPage() {
           <p>Preencha os dados do cliente, os itens e o endereço de entrega.</p>
         </header>
 
-        <form ref={formRef} className="order-form" onSubmit={handleValidate} noValidate>
-          <fieldset className="order-form-section">
-            <legend>Cliente</legend>
-            <p className="order-section-description">Quem receberá o pedido?</p>
-            <div className="form-field">
-              <label htmlFor="order-customer-name">Nome do cliente</label>
-              <input
-                id="order-customer-name"
-                name="customerName"
-                type="text"
-                autoComplete="name"
-                value={form.customerName}
-                onChange={updateCustomerName}
-                required
-                aria-invalid={Boolean(fieldErrors.customerName)}
-                aria-describedby={fieldErrors.customerName ? 'order-customer-name-error' : undefined}
-              />
-              {fieldErrors.customerName && (
-                <p id="order-customer-name-error" className="field-error">{fieldErrors.customerName}</p>
-              )}
-            </div>
+        <form ref={formRef} className="order-form" onSubmit={handleSubmit} noValidate aria-busy={isSubmitting}>
+          <fieldset className="order-form-controls" disabled={isSubmitting}>
+            <fieldset className="order-form-section">
+              <legend>Cliente</legend>
+              <p className="order-section-description">Quem receberá o pedido?</p>
+              <div className="form-field">
+                <label htmlFor="order-customer-name">Nome do cliente</label>
+                <input
+                  id="order-customer-name"
+                  name="customerName"
+                  type="text"
+                  autoComplete="name"
+                  value={form.customerName}
+                  onChange={updateCustomerName}
+                  required
+                  aria-invalid={Boolean(fieldErrors.customerName)}
+                  aria-describedby={fieldErrors.customerName ? 'order-customer-name-error' : undefined}
+                />
+                {fieldErrors.customerName && (
+                  <p id="order-customer-name-error" className="field-error">{fieldErrors.customerName}</p>
+                )}
+              </div>
+            </fieldset>
+
+            <OrderItemsFields
+              items={form.items}
+              errors={fieldErrors}
+              onChange={updateItem}
+              onAdd={addItem}
+              onRemove={removeItem}
+            />
+            <DeliveryAddressFields address={form.deliveryAddress} errors={fieldErrors} onChange={updateAddress} />
           </fieldset>
 
-          <OrderItemsFields
-            items={form.items}
-            errors={fieldErrors}
-            onChange={updateItem}
-            onAdd={addItem}
-            onRemove={removeItem}
-          />
-          <DeliveryAddressFields address={form.deliveryAddress} errors={fieldErrors} onChange={updateAddress} />
+          {isSubmitting && <p className="order-section-description" role="status">Criando pedido…</p>}
 
-          {formMessage && (
+          {error && (
+            <div className="form-message form-message-error order-form-message" role="alert">
+              <p>{error.message}</p>
+              {isUncertain && <Link className="text-link" to="/orders">Conferir pedidos</Link>}
+            </div>
+          )}
+
+          {!error && formMessage && (
             <div
               className={`form-message form-message-${formMessage.type} order-form-message`}
               role={formMessage.type === 'error' ? 'alert' : 'status'}
@@ -158,8 +191,12 @@ export default function NewOrderPage() {
           )}
 
           <div className="order-form-actions">
-            <Link className="text-link" to="/orders">Cancelar</Link>
-            <button className="primary-button" type="submit">Conferir dados</button>
+            <button className="secondary-button" type="button" disabled={isSubmitting} onClick={() => navigate('/orders')}>
+              Cancelar
+            </button>
+            <button className="primary-button" type="submit" disabled={isSubmitting || isUncertain}>
+              {isSubmitting ? 'Criando pedido…' : 'Criar pedido'}
+            </button>
           </div>
         </form>
       </section>
