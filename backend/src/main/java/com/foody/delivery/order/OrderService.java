@@ -2,12 +2,14 @@ package com.foody.delivery.order;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.List;
 
 import com.foody.delivery.auth.DatabaseBusyException;
 import com.foody.delivery.order.dto.CreateOrderRequest;
 import com.foody.delivery.order.dto.OrderResponse;
 
 import org.springframework.stereotype.Service;
+import org.springframework.dao.DataAccessException;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.sqlite.SQLiteException;
@@ -23,6 +25,19 @@ public class OrderService {
         this.repository = repository;
         this.clock = clock;
         transaction = new TransactionTemplate(transactionManager);
+    }
+
+    public List<OrderResponse> list() {
+        try {
+            return repository.findAll().stream().map(OrderResponse::from).toList();
+        } catch (DataAccessException failure) {
+            for (Throwable cause = failure; cause != null; cause = cause.getCause()) {
+                if (cause instanceof SQLiteException sqlite && (sqlite.getResultCode().code & 0xff) == 5) {
+                    throw new DatabaseBusyException(failure);
+                }
+            }
+            throw failure;
+        }
     }
 
     public OrderResponse create(CreateOrderRequest request) {
