@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { OrdersResponseError, ordersErrorMessage, ordersResultFrom } from './orders.js';
+import { OrdersResponseError, ordersErrorMessage, ordersResultFrom, updatedOrderResultFrom } from './orders.js';
 
 function orderFixture() {
   return {
@@ -92,4 +92,13 @@ test('maps network, authentication, busy database and malformed responses to con
     response: { status: 500, data: { detail: '<b>SQL e segredo</b>', message: 'stack trace' } },
   });
   assert.doesNotMatch(message, /SQL|segredo|stack|<b>/);
+});
+
+test('status update requires the complete HTTP 200 DTO for the requested order', () => {
+  const order = { ...orderFixture(), status: 'EM_PREPARO', version: 1 };
+  assert.deepEqual(updatedOrderResultFrom({ status: 200, data: order }, order.id), order);
+  for (const response of [
+    { status: 201, data: order }, { status: 200, data: '<html>SPA</html>' },
+    { status: 200, data: { ...order, id: 8 } }, { status: 200, data: { ...order, items: [] } },
+  ]) assert.throws(() => updatedOrderResultFrom(response, order.id), OrdersResponseError);
 });

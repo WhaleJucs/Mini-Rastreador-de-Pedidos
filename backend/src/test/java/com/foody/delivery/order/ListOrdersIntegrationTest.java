@@ -81,7 +81,7 @@ class ListOrdersIntegrationTest {
     }
 
     @Test
-    void returnsTheSameGlobalCollectionToBothUsersWithCompleteIndependentItems() {
+    void returnsOnlyEachUsersOrdersWithCompleteIndependentItems() {
         var firstToken = registerAndLogin("first@example.invalid");
         var secondToken = registerAndLogin("second@example.invalid");
         var firstOrder = create(firstToken, "Destinatário A", List.of(
@@ -99,11 +99,12 @@ class ListOrdersIntegrationTest {
         assertThat(firstResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(secondResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(firstResponse.getBody().isArray()).isTrue();
-        assertThat(firstResponse.getBody().size()).isEqualTo(3);
-        assertThat(firstResponse.getBody()).isEqualTo(secondResponse.getBody());
+        assertThat(firstResponse.getBody().size()).isEqualTo(2);
+        assertThat(secondResponse.getBody().size()).isEqualTo(1);
         assertThat(firstResponse.getBody().get(0)).isEqualTo(thirdOrder);
-        assertThat(firstResponse.getBody().get(1)).isEqualTo(secondOrder);
-        assertThat(firstResponse.getBody().get(2)).isEqualTo(firstOrder);
+        assertThat(firstResponse.getBody().get(1)).isEqualTo(firstOrder);
+        assertThat(secondResponse.getBody().get(0)).isEqualTo(secondOrder);
+        assertThat(list(registerAndLogin("third@example.invalid")).getBody().size()).isZero();
         for (var order : firstResponse.getBody()) {
             assertThat(order.fieldNames()).toIterable().containsExactlyInAnyOrder(
                     "id", "customerName", "deliveryAddress", "items", "status", "createdAt", "version");

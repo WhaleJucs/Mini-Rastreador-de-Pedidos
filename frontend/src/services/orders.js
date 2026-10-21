@@ -94,6 +94,13 @@ export function createdOrderResultFrom(response) {
   return order;
 }
 
+export function updatedOrderResultFrom(response, id) {
+  if (response?.status !== 200) throw new OrdersResponseError();
+  const order = orderFrom(response.data);
+  if (order.id !== id) throw new OrdersResponseError();
+  return order;
+}
+
 export function ordersErrorMessage(error) {
   if (error instanceof OrdersResponseError) return error.message;
   if (error?.response?.status === 401) return 'Sua sessão expirou. Entre novamente.';

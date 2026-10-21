@@ -1,12 +1,15 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import OrderCard from '../components/orders/OrderCard.jsx';
+import OrderStatusControl from '../components/orders/OrderStatusControl.jsx';
 import { useAuth } from '../hooks/useAuth.js';
 import { useOrders } from '../hooks/useOrders.js';
+import { useUpdateOrderStatus } from '../hooks/useUpdateOrderStatus.js';
 
 export default function OrdersPage() {
   const { logout, user } = useAuth();
-  const { orders, hasLoaded, isLoading, error, refresh } = useOrders();
+  const { orders, hasLoaded, isLoading, error, refresh, invalidate, applyConfirmed } = useOrders();
+  const statusUpdate = useUpdateOrderStatus({ invalidate, applyConfirmed, refresh });
   const navigate = useNavigate();
   const location = useLocation();
   const [createdOrderId] = useState(() => {
@@ -43,7 +46,7 @@ export default function OrdersPage() {
           <div>
             <p className="eyebrow">Acompanhe as entregas</p>
             <h1 id="orders-title">Pedidos</h1>
-            <p>Todos os pedidos, dos mais recentes aos mais antigos.</p>
+            <p>Seus pedidos, dos mais recentes aos mais antigos.</p>
           </div>
           <div className="orders-actions">
             <button className="secondary-button" type="button" onClick={refresh} disabled={isLoading}>
@@ -83,7 +86,14 @@ export default function OrdersPage() {
           )}
           {orders.length > 0 && (
             <ul className="orders-list" aria-label="Pedidos cadastrados">
-              {orders.map(order => <li key={order.id}><OrderCard order={order} /></li>)}
+              {orders.map(order => (
+                <li key={order.id}>
+                  <OrderCard order={order}>
+                    <OrderStatusControl order={order} state={statusUpdate.states[order.id]}
+                      onSubmit={statusUpdate.submit} onReload={statusUpdate.reload} />
+                  </OrderCard>
+                </li>
+              ))}
             </ul>
           )}
         </div>

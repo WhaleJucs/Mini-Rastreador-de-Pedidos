@@ -93,6 +93,10 @@ class CreateOrderIntegrationTest {
     void clearOrders() {
         jdbcTemplate.update("DELETE FROM order_items");
         jdbcTemplate.update("DELETE FROM orders");
+        jdbcTemplate.update("""
+                INSERT OR IGNORE INTO users(id, name, email, password_hash)
+                VALUES (1, 'Usuário de teste', 'owner@example.invalid', 'HASH_FICTICIO_NAO_UTILIZAVEL')
+                """);
     }
 
     @Test
@@ -121,6 +125,7 @@ class CreateOrderIntegrationTest {
         // Read the committed data through a separate connection, not the HTTP transaction.
         var stored = jdbcTemplate.queryForMap("SELECT * FROM orders WHERE id = ?", orderId);
         assertThat(stored.get("customer_name")).isEqualTo("Destinatário de teste");
+        assertThat(((Number) stored.get("user_id")).longValue()).isEqualTo(1L);
         assertThat(stored.get("street")).isEqualTo("Rua de Teste");
         assertThat(stored.get("number")).isEqualTo("S/N");
         assertThat(stored.get("city")).isEqualTo("Cidade de Teste");
