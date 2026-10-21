@@ -59,9 +59,13 @@ export default function RegisterPage() {
 
     try {
       await register(form, { signal: controller.signal });
-      navigate('/login', { replace: true, state: { registrationCompleted: true } });
+      navigate('/orders', { replace: true });
     } catch (error) {
       if (error?.code === 'ERR_CANCELED') return;
+      if (error?.registrationCompleted) {
+        navigate('/login', { replace: true, state: { registrationCompleted: true, automaticLoginFailed: true } });
+        return;
+      }
       const nextFieldErrors = error?.fieldErrors ?? {};
       setFieldErrors(nextFieldErrors);
       setGeneralError(error?.message ?? 'Não foi possível concluir o cadastro. Tente novamente.');
@@ -102,7 +106,7 @@ export default function RegisterPage() {
             </div>
           )}
 
-          <form className="auth-form" onSubmit={handleSubmit} noValidate>
+          <form className="auth-form" onSubmit={handleSubmit} noValidate aria-busy={isSubmitting}>
             <div className="form-field">
               <label htmlFor="register-name">Nome</label>
               <input
