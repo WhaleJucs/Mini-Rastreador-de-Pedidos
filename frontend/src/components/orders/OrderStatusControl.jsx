@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { allowedOrderStatuses } from '../../services/orderStatusUpdate.js';
 import OrderStatusSelect from './OrderStatusSelect.jsx';
+import { orderStatusLabel } from '../../utils/orderStatusLabel.js';
 
 export default function OrderStatusControl({ order, state = {}, onSubmit, onReload }) {
   const [choice, setChoice] = useState(null);
@@ -11,7 +12,7 @@ export default function OrderStatusControl({ order, state = {}, onSubmit, onRelo
   function confirmChange(event) {
     event.preventDefault();
     if (disabled || !destinations.includes(selected)) return;
-    if (!window.confirm(`Alterar o pedido #${order.id} de ${order.status} para ${selected}?`)) return;
+    if (!window.confirm(`Alterar o pedido #${order.id} de ${orderStatusLabel(order.status)} para ${orderStatusLabel(selected)}?`)) return;
     onSubmit(order, selected);
     setChoice(null);
   }

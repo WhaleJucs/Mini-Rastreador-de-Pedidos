@@ -1,3 +1,5 @@
+import { orderStatusLabel } from '../utils/orderStatusLabel.js';
+
 const DESTINATIONS = Object.freeze({
   RECEBIDO: Object.freeze(['EM_PREPARO', 'CANCELADO']),
   EM_PREPARO: Object.freeze(['SAIU_PARA_ENTREGA', 'CANCELADO']),
@@ -52,7 +54,7 @@ export function createOrderStatusUpdater({ send, reload, onStart, onConfirmed, o
     if (!isCurrent()) return null;
     requests.delete(id);
     onConfirmed(order);
-    onChange(id, { isSubmitting: false, error: null, success: `Status confirmado: ${order.status}.`, isReloading: false });
+    onChange(id, { isSubmitting: false, error: null, success: `Status confirmado: ${orderStatusLabel(order.status)}.`, isReloading: false });
     return order;
   }
 
