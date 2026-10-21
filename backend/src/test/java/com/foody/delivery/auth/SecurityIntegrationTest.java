@@ -130,12 +130,13 @@ class SecurityIntegrationTest {
     }
 
     @Test
-    void acceptsAValidIssuedTokenAtTheSecurityBoundaryWithoutInventingOrderEndpoint() {
+    void acceptsAValidIssuedTokenBeforeValidatingTheOrderPayload() {
         var token = registerAndLogin();
 
-        var response = exchange(HttpMethod.GET, ORDERS_PATH, null, bearer(token));
+        var response = exchange(HttpMethod.POST, ORDERS_PATH, "{not-json", bearer(token));
 
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getBody().path("code").asText()).isEqualTo("VALIDATION_ERROR");
         assertThat(response.getStatusCode()).isNotEqualTo(HttpStatus.UNAUTHORIZED);
     }
 
