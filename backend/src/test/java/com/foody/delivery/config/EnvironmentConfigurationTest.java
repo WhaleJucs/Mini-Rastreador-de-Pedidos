@@ -59,7 +59,7 @@ class EnvironmentConfigurationTest {
     @ValueSource(strings = {"app.db.path=", "app.db.path=:memory:", "app.db.path=file:shared.db",
             "app.db.busy-timeout-ms=0", "app.db.busy-timeout-ms=-1", "app.db.busy-timeout-ms=2147483648",
             "app.jwt.ttl-seconds=0", "app.jwt.ttl-seconds=-1", "app.jwt.ttl-seconds=invalid",
-            "app.jwt.secret-base64=", "app.jwt.secret-base64=short", "app.jwt.secret-base64=YQ==",
+            "app.jwt.secret-base64=short", "app.jwt.secret-base64=YQ==",
             "app.jwt.issuer=", "app.cors.allowed-origins=", "app.cors.allowed-origins=*",
             "app.cors.allowed-origins=https://example.invalid/path",
             "app.cors.allowed-origins=https://user:password@example.invalid",
@@ -85,11 +85,18 @@ class EnvironmentConfigurationTest {
     @Test
     void rejectsInvalidConfigurationBeforeCreatingDatabase() {
         runner().withUserConfiguration(DatabaseConfig.class)
-                .withPropertyValues("spring.profiles.active=local", "app.jwt.secret-base64=")
+                .withPropertyValues("spring.profiles.active=hml", "app.jwt.secret-base64=")
                 .run(context -> {
                     assertThat(context).hasFailed();
                     assertThat(Files.exists(directory.resolve("fixture.db"))).isFalse();
                 });
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"hml", "prod", "test"})
+    void onlyLocalAllowsAnOmittedJwtSecret(String profile) {
+        runner().withPropertyValues("spring.profiles.active=" + profile, "app.jwt.secret-base64=")
+                .run(context -> assertThat(context).hasFailed());
     }
 
     @Test

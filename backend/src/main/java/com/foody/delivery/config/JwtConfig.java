@@ -1,6 +1,7 @@
 package com.foody.delivery.config;
 
 import java.time.Clock;
+import java.security.SecureRandom;
 import java.util.Base64;
 
 import javax.crypto.SecretKey;
@@ -11,6 +12,8 @@ import com.nimbusds.jose.proc.SecurityContext;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.Environment;
+import org.springframework.core.env.Profiles;
 import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -31,13 +34,25 @@ public class JwtConfig {
     }
 
     @Bean
-    JwtEncoder jwtEncoder(AppProperties properties) {
-        return new NimbusJwtEncoder(new ImmutableSecret<SecurityContext>(secretKey(properties)));
+    SecretKey jwtSecretKey(AppProperties properties, Environment environment) {
+        if (environment.acceptsProfiles(Profiles.of("local"))
+                && (properties.jwt().secretBase64() == null || properties.jwt().secretBase64().isBlank())) {
+            var bytes = new byte[32];
+            new SecureRandom().nextBytes(bytes);
+            return new SecretKeySpec(bytes, "HmacSHA256");
+        }
+        var decoded = Base64.getDecoder().decode(properties.jwt().secretBase64());
+        return new SecretKeySpec(decoded, "HmacSHA256");
     }
 
     @Bean
-    JwtDecoder jwtDecoder(AppProperties properties, Clock clock) {
-        var decoder = NimbusJwtDecoder.withSecretKey(secretKey(properties))
+    JwtEncoder jwtEncoder(SecretKey jwtSecretKey) {
+        return new NimbusJwtEncoder(new ImmutableSecret<SecurityContext>(jwtSecretKey));
+    }
+
+    @Bean
+    JwtDecoder jwtDecoder(AppProperties properties, Clock clock, SecretKey jwtSecretKey) {
+        var decoder = NimbusJwtDecoder.withSecretKey(jwtSecretKey)
                 .macAlgorithm(MacAlgorithm.HS256)
                 .build();
         var timestampValidator = new JwtTimestampValidator();
@@ -56,10 +71,5 @@ public class JwtConfig {
         } catch (NumberFormatException failure) {
             return false;
         }
-    }
-
-    private static SecretKey secretKey(AppProperties properties) {
-        var decoded = Base64.getDecoder().decode(properties.jwt().secretBase64());
-        return new SecretKeySpec(decoded, "HmacSHA256");
     }
 }

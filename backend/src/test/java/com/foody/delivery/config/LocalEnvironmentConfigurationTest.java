@@ -1,8 +1,13 @@
 package com.foody.delivery.config;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Map;
 
+import javax.crypto.SecretKey;
+
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.boot.test.context.ConfigDataApplicationContextInitializer;
@@ -12,6 +17,9 @@ import org.springframework.core.env.SystemEnvironmentPropertySource;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class LocalEnvironmentConfigurationTest {
+    @TempDir
+    Path directory;
+
     private ApplicationContextRunner runner() {
         return new ApplicationContextRunner()
                 .withInitializer(new ConfigDataApplicationContextInitializer())
@@ -58,6 +66,23 @@ class LocalEnvironmentConfigurationTest {
                     assertThat(properties.cors().allowedOrigins()).containsExactly("http://localhost:5175");
                     assertThat(context.getEnvironment().getProperty("server.address")).isEqualTo("localhost");
                     assertThat(context.getEnvironment().getProperty("server.port")).isEqualTo("8082");
+                });
+    }
+
+    @Test
+    void localStartsWithoutSecretAndCreatesTheDatabaseDirectory() {
+        var database = directory.resolve("nested").resolve("foody.db");
+        new ApplicationContextRunner()
+                .withInitializer(new ConfigDataApplicationContextInitializer())
+                .withUserConfiguration(DatabaseConfig.class, JwtConfig.class)
+                .withPropertyValues("spring.profiles.active=local", "app.db.path=" + database,
+                        "app.jwt.secret-base64=", "app.jwt.issuer=foody-local",
+                        "app.cors.allowed-origins=http://127.0.0.1:5174")
+                .run(context -> {
+                    assertThat(context).hasNotFailed();
+                    assertThat(context.getBean(SecretKey.class).getEncoded()).hasSize(32);
+                    assertThat(Files.isDirectory(database.getParent())).isTrue();
+                    assertThat(Files.isRegularFile(database)).isTrue();
                 });
     }
 }

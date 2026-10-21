@@ -9,15 +9,19 @@ import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.foody.delivery.order.OrderStatus;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
 
 public record StatusUpdateRequest(
         @NotNull(message = "Informe o status do pedido.")
+        @Schema(description = "Novo status permitido pela sequência do pedido", example = "EM_PREPARO")
         @JsonDeserialize(using = StatusDeserializer.class)
         OrderStatus status,
         @NotNull(message = "Informe a revisão observada do pedido.")
         @PositiveOrZero(message = "Informe uma revisão inteira não negativa.")
+        @Schema(description = "Versão recebida na última leitura do pedido; evita sobrescrever alterações concorrentes", example = "0")
         @JsonDeserialize(using = VersionDeserializer.class)
         Long expectedVersion) {
 

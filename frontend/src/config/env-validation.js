@@ -1,10 +1,13 @@
 export function resolveEnv(values) {
   const expectedEnvironment = { development: 'local', hml: 'hml', production: 'prod' }[values.MODE];
-  if (!expectedEnvironment || values.VITE_APP_ENV !== expectedEnvironment) {
+  const appEnvironment = values.VITE_APP_ENV?.trim() || (expectedEnvironment === 'local' ? 'local' : undefined);
+  if (!expectedEnvironment || appEnvironment !== expectedEnvironment) {
     throw new Error('VITE_APP_ENV deve corresponder ao modo development/local, hml/hml ou production/prod.');
   }
 
-  const apiBaseUrl = values.VITE_API_BASE_URL?.trim().replace(/\/+$/, '');
+  const configuredApiBaseUrl = values.VITE_API_BASE_URL?.trim()
+    || (expectedEnvironment === 'local' ? '/api' : undefined);
+  const apiBaseUrl = configuredApiBaseUrl?.replace(/\/+$/, '');
   const fail = () => { throw new Error('VITE_API_BASE_URL exige uma base /api pública válida para o ambiente.'); };
   if (!apiBaseUrl) fail();
   if (apiBaseUrl !== '/api' || expectedEnvironment !== 'local') {

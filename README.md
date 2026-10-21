@@ -30,42 +30,51 @@ Aplicação full-stack desenvolvida para o desafio técnico da **Foody Delivery*
 | Backend | Java 21, Spring Boot, Spring Security, Spring JDBC, JWT e Maven |
 | Frontend | React 19, React Router, Axios e Vite |
 | Banco de dados | SQLite |
-| Testes | JUnit, Spring Boot Test e Node Test Runner |
+| Testes | JUnit, Spring Boot Test, Node Test Runner, Vitest e Testing Library |
 
 ## Executando localmente
 
-Pré-requisitos: **JDK 21**, **Node.js 22.22 ou superior** e npm.
+Pré-requisitos: **JDK 21**, **Node.js 20.19 ou 22.12+** e npm.
 
 ### Backend
 
-No PowerShell, a partir da raiz do projeto:
+O perfil `local` cria a pasta do SQLite e gera uma chave JWT efêmera automaticamente.
+
+Windows PowerShell:
 
 ```powershell
 Set-Location .\backend
-New-Item -ItemType Directory -Force -Path .\data | Out-Null
-$env:SPRING_PROFILES_ACTIVE = 'local'
-$env:APP_JWT_SECRET_BASE64 = [Convert]::ToBase64String(
-  [Security.Cryptography.RandomNumberGenerator]::GetBytes(32)
-)
-.\mvnw.cmd spring-boot:run
+.\mvnw.cmd "-Dspring-boot.run.profiles=local" spring-boot:run
 ```
 
-A API ficará disponível em `http://127.0.0.1:8081` e criará o banco local em `backend/data/foody-local.db`.
+Linux ou macOS:
+
+```bash
+cd backend
+./mvnw -Dspring-boot.run.profiles=local spring-boot:run
+```
+
+A API ficará em `http://127.0.0.1:8081`, o SQLite em `backend/data/foody-local.db` e o Swagger em `http://127.0.0.1:8081/swagger-ui.html`. Como a chave local é efêmera, reiniciar o backend encerra as sessões existentes.
 
 ### Frontend
 
-Em outro PowerShell, a partir da raiz:
+Windows PowerShell:
 
 ```powershell
 Set-Location .\frontend
 npm ci
-if (-not (Test-Path .env.development.local)) {
-  Copy-Item .env.development.example .env.development.local
-}
 npm run dev
 ```
 
-Acesse `http://127.0.0.1:5174`.
+Linux ou macOS:
+
+```bash
+cd frontend
+npm ci
+npm run dev
+```
+
+Acesse `http://127.0.0.1:5174`. O modo local usa `/api` por padrão e não exige arquivo `.env`.
 
 ## Principais endpoints
 
@@ -77,6 +86,27 @@ Acesse `http://127.0.0.1:5174`.
 | `GET` | `/api/orders` | Lista os pedidos da conta autenticada |
 | `GET` | `/api/orders/{id}` | Consulta um pedido por ID |
 | `PATCH` | `/api/orders/{id}/status` | Atualiza o status do pedido |
+
+O `PATCH` usa a versão retornada na última leitura para impedir sobrescritas concorrentes:
+
+```bash
+curl -X PATCH http://127.0.0.1:8081/api/orders/1/status \
+  -H "Authorization: Bearer <TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{"status":"EM_PREPARO","expectedVersion":0}'
+```
+
+Exemplos de autenticação:
+
+```bash
+curl -X POST http://127.0.0.1:8081/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Usuário Teste","email":"teste@example.com","password":"senha-segura"}'
+
+curl -X POST http://127.0.0.1:8081/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"teste@example.com","password":"senha-segura"}'
+```
 
 ## Testes
 
@@ -90,10 +120,11 @@ Set-Location .\backend
 # Frontend
 Set-Location ..\frontend
 npm test
+npm run test:components
 npm run build:dev
 ```
 
-A validação final do projeto aprovou **293 testes backend**, **115 testes frontend** e as jornadas integradas de autenticação, pedidos, concorrência, persistência, rede e ViaCEP.
+A validação cobre backend, serviços frontend, componentes React e jornadas integradas de autenticação, pedidos, concorrência, persistência, rede e ViaCEP. O workflow em `.github/workflows/ci.yml` executa as suítes e o build em pushes e pull requests.
 
 ## Estrutura
 
