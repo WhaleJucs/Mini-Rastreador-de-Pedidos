@@ -1,3 +1,5 @@
+import { orderStatusLabel } from '../../utils/orderStatusLabel.js';
+
 const dateFormatter = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
 
 export default function OrderCard({ order, children }) {
@@ -9,7 +11,7 @@ export default function OrderCard({ order, children }) {
           <p className="eyebrow">Pedido #{order.id}</p>
           <h2 id={`order-title-${order.id}`}>{order.customerName}</h2>
         </div>
-        <p className="order-status"><span>Status: </span>{order.status}</p>
+        <p className="order-status"><span>Status: </span>{orderStatusLabel(order.status)}</p>
       </header>
 
       <p className="order-created-at">

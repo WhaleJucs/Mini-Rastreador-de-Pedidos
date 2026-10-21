@@ -52,7 +52,7 @@ test('sends the observed revision unchanged and announces success only after con
   f.calls[0].resolve(result);
   assert.equal(await pending, result);
   assert.deepEqual(f.confirmed, [result]);
-  assert.match(f.changes.at(-1).state.success, /Status confirmado: EM_PREPARO/);
+  assert.equal(f.changes.at(-1).state.success, 'Status confirmado: Em Preparo.');
   f.updater.dispose();
 });
 
