@@ -5,6 +5,7 @@ import { connectApiSession } from '../services/api.js';
 import { login as requestLogin, register as requestRegistration } from '../services/authApi.js';
 import { sessionFromLogin, restoreSession } from '../services/authSession.js';
 import { createAuthStorage } from '../services/authStorage.js';
+import { registerAndSignIn } from '../services/registrationSession.js';
 
 export const AuthContext = createContext(null);
 
@@ -63,6 +64,16 @@ export function AuthProvider({ children }) {
     return nextSession;
   }, []);
 
+  const register = useCallback((user, { signal } = {}) => {
+    const generation = generationRef.current;
+    const attempt = loginAttemptRef.current;
+    return registerAndSignIn({
+      register: requestRegistration,
+      login,
+      isCurrent: () => generationRef.current === generation && loginAttemptRef.current === attempt,
+    }, user, { signal });
+  }, [login]);
+
   const logout = useCallback(() => endSession('logout'), [endSession]);
 
   useEffect(() => {
@@ -102,8 +113,8 @@ export function AuthProvider({ children }) {
     sessionEndReason,
     login,
     logout,
-    register: requestRegistration,
-  }), [login, logout, session, sessionEndReason]);
+    register,
+  }), [login, logout, register, session, sessionEndReason]);
 
   return <AuthContext value={value}>{apiReady ? children : null}</AuthContext>;
 }

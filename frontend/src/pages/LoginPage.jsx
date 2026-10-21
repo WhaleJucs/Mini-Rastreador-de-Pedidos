@@ -7,6 +7,7 @@ const EMPTY_FORM = { email: '', password: '' };
 const PROTECTED_DESTINATIONS = new Set(['/orders', '/orders/new']);
 
 function accessMessage(state) {
+  if (state?.automaticLoginFailed) return 'Sua conta foi criada, mas não foi possível entrar automaticamente. Entre com sua conta.';
   if (state?.registrationCompleted) return 'Cadastro concluído. Entre com sua conta.';
   if (state?.authReason === 'expired') return 'Sua sessão expirou. Entre novamente para continuar.';
   if (state?.authReason === 'unauthorized') return 'Sua sessão não é mais válida. Entre novamente.';
@@ -112,7 +113,7 @@ export default function LoginPage() {
 
           {statusMessage && !generalError && (
             <div
-              className={`form-message ${location.state?.registrationCompleted ? 'form-message-success' : 'form-message-info'}`}
+              className={`form-message ${location.state?.registrationCompleted && !location.state?.automaticLoginFailed ? 'form-message-success' : 'form-message-info'}`}
               role="status"
             >
               {statusMessage}
