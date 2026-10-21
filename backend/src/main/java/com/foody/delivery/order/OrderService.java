@@ -40,6 +40,19 @@ public class OrderService {
         }
     }
 
+    public OrderResponse get(long id) {
+        try {
+            return repository.findById(id).map(OrderResponse::from).orElseThrow(OrderNotFoundException::new);
+        } catch (DataAccessException failure) {
+            for (Throwable cause = failure; cause != null; cause = cause.getCause()) {
+                if (cause instanceof SQLiteException sqlite && (sqlite.getResultCode().code & 0xff) == 5) {
+                    throw new DatabaseBusyException(failure);
+                }
+            }
+            throw failure;
+        }
+    }
+
     public OrderResponse create(CreateOrderRequest request) {
         var createdAt = Instant.now(clock);
         try {

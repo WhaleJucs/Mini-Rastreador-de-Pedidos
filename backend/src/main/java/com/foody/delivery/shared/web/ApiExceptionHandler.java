@@ -8,6 +8,8 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 import com.foody.delivery.auth.DatabaseBusyException;
 import com.foody.delivery.auth.EmailAlreadyExistsException;
 import com.foody.delivery.auth.InvalidCredentialsException;
+import com.foody.delivery.order.InvalidOrderIdException;
+import com.foody.delivery.order.OrderNotFoundException;
 
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -20,9 +22,24 @@ import org.springframework.transaction.TransactionException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
+
+    @ExceptionHandler({InvalidOrderIdException.class, MethodArgumentTypeMismatchException.class})
+    ResponseEntity<ProblemDetail> handleInvalidOrderId(HttpServletRequest request) {
+        var problem = problem(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", "Dados inválidos",
+                "Informe um identificador inteiro positivo válido.", request);
+        problem.setProperty("violations", List.of(new Violation("id", "Informe um identificador inteiro positivo válido.")));
+        return ResponseEntity.badRequest().body(problem);
+    }
+
+    @ExceptionHandler(OrderNotFoundException.class)
+    ResponseEntity<ProblemDetail> handleOrderNotFound(HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(problem(HttpStatus.NOT_FOUND,
+                "ORDER_NOT_FOUND", "Pedido não encontrado", "O pedido informado não foi encontrado.", request));
+    }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     ResponseEntity<ProblemDetail> handleValidation(
