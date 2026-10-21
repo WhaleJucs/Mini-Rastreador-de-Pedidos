@@ -10,14 +10,17 @@ for (const [mode, appEnv] of [['development', 'local'], ['hml', 'hml'], ['produc
     });
     assert.ok(Object.isFrozen(resolveEnv(values)));
   });
-  for (const [name, override] of Object.entries({
-    'missing label': { VITE_APP_ENV: undefined },
+  const invalid = {
     'wrong label': { VITE_APP_ENV: 'invalid' },
-    'missing URL': { VITE_API_BASE_URL: '' },
     'credentials': { VITE_API_BASE_URL: 'https://user:password@api.example.invalid/api' },
     'query': { VITE_API_BASE_URL: 'https://api.example.invalid/api?secret=synthetic' },
     'duplicate base': { VITE_API_BASE_URL: 'https://api.example.invalid/api/api' },
-  })) {
+  };
+  if (appEnv !== 'local') {
+    invalid['missing label'] = { VITE_APP_ENV: undefined };
+    invalid['missing URL'] = { VITE_API_BASE_URL: '' };
+  }
+  for (const [name, override] of Object.entries(invalid)) {
     test(`${mode} rejects ${name} without echoing the input`, () => {
       assert.throws(() => resolveEnv({ ...values, ...override }), error =>
         error.message.startsWith('VITE_') && !error.message.includes('password') && !error.message.includes('synthetic'));
@@ -35,6 +38,10 @@ for (const [mode, appEnv] of [['development', 'local'], ['hml', 'hml'], ['produc
 
 test('local accepts an explicit development proxy base', () => {
   assert.equal(resolveEnv({ MODE: 'development', VITE_APP_ENV: 'local', VITE_API_BASE_URL: '/api' }).apiBaseUrl, '/api');
+});
+
+test('local defaults to the development label and proxy without an env file', () => {
+  assert.deepEqual(resolveEnv({ MODE: 'development' }), { appEnv: 'local', apiBaseUrl: '/api' });
 });
 
 for (const mode of ['local', 'unknown', undefined, 'toString', '__proto__']) {

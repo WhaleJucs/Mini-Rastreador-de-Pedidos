@@ -52,7 +52,10 @@ public class EnvironmentValidator {
                 // Não propagar a causa/entrada: uma chave inválida continua sendo um segredo.
             }
         }
-        require(validKey, "APP_JWT_SECRET_BASE64 deve codificar pelo menos 32 bytes em Base64.");
+        var generatedLocalKey = profile.equals("local")
+                && (jwt.secretBase64() == null || jwt.secretBase64().isBlank());
+        require(generatedLocalKey || validKey,
+                "APP_JWT_SECRET_BASE64 deve codificar pelo menos 32 bytes em Base64; no perfil local pode ficar ausente.");
         require(jwt.issuer() != null && !jwt.issuer().isBlank(), "APP_JWT_ISSUER é obrigatório.");
         require(jwt.ttlSeconds() > 0, "APP_JWT_TTL_SECONDS deve ser inteiro positivo.");
 
